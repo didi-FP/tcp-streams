@@ -100,8 +100,6 @@ testTLSSocket = testCase "network/socket" $
         putMVar mvar ()
         (is, os, ctx, sockAddr) <- TLS.accept sp sock
         os `Stream.connectTo` is
-        TLS.closeTLS ctx
-        N.sClose sock
 
 
 ------------------------------------------------------------------------------

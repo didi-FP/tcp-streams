@@ -1,13 +1,13 @@
-tcp-streams: Easy TCP with tls and streamming
-=============================================
+tcp-streams
+===========
 
-One stop solution for tcp client and server with tls support! 
+One stop solution for tcp client and server with tls support!
 
 + use [io-streams](https://hackage.haskell.org/package/io-streams) for auto read buffering and easy streamming process.
 
 + use [tls](http://hackage.haskell.org/package/tls) for tls connection.
 
-Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0). Happy hacking!
+Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0), for serialize/deserialize data. Happy hacking!
 
 Example
 -------
@@ -28,7 +28,7 @@ Stream.read is >>= ..   -- receiving
 -- TCP Server
 ...
 sock <- TCP.bindAndListen 8888 1024
-(is, os, csock, _) <- Raw.accept sock
+(is, os, csock, _) <- TCP.accept sock
 Stream.write os =<< ..  -- sending
 Stream.read is >>= ..   -- receiving
 ...

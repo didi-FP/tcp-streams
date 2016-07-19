@@ -6,6 +6,7 @@
 -- immediately send to underlying socket.
 --
 -- You should handle 'IOError' when you read/write these streams for safty.
+--
 module System.IO.Streams.TLS (
     -- * tls client
     connect
@@ -56,12 +57,11 @@ tlsToStreams ctx = do
 -- close the underlying TLS connection; to do that, call 'closeTLS'
 --
 -- this operation will throw 'TLS.TLSException' on failure.
-connect :: ClientParams         -- ^ SSL context. See the @HsOpenSSL@
-                                   -- documentation for information on creating
-                                   -- this.
-           -> HostName             -- ^ hostname to connect to
-           -> PortNumber           -- ^ port number to connect to
-           -> IO (InputStream ByteString, OutputStream ByteString, Context)
+--
+connect :: ClientParams         -- ^ check "Data.TLSSetting".
+        -> HostName             -- ^ hostname to connect to
+        -> PortNumber           -- ^ port number to connect to
+        -> IO (InputStream ByteString, OutputStream ByteString, Context)
 connect prms host port = do
     sock <- TCP.connectSocket host port
     E.bracketOnError (TLS.contextNew sock prms) closeTLS $ \ ctx -> do
@@ -71,18 +71,15 @@ connect prms host port = do
 
 
 -- | Convenience function for initiating an TLS connection to the given
--- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
+-- @('HostName', 'PortNumber')@ combination. The socket and TLS connection are
 -- closed and deleted after the user handler runs.
 --
-withConnection ::
-     ClientParams         -- ^ SSL context. See the @HsOpenSSL@
-                          -- documentation for information on creating
-                          -- this.
-  -> HostName             -- ^ hostname to connect to
-  -> PortNumber           -- ^ port number to connect to
-  -> (InputStream ByteString -> OutputStream ByteString -> Context -> IO a)
-          -- ^ Action to run with the new connection
-  -> IO a
+withConnection :: ClientParams         -- ^ check "Data.TLSSetting".
+               -> HostName             -- ^ hostname to connect to
+               -> PortNumber           -- ^ port number to connect to
+               -> (InputStream ByteString -> OutputStream ByteString -> Context -> IO a)
+                       -- ^ Action to run with the new connection
+               -> IO a
 withConnection prms host port action =
     E.bracket (connect prms host port) cleanup go
 
@@ -95,9 +92,14 @@ withConnection prms host port action =
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
 
--- | accept a new connection from remote client, return a 'InputStream'/'OutputStream' pair
--- and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
-accept :: ServerParams -> Socket -> IO (InputStream ByteString, OutputStream ByteString, Context, N.SockAddr)
+-- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
+-- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
+--
+-- this operation will throw 'TLS.TLSException' on failure.
+--
+accept :: ServerParams              -- ^ check "Data.TLSSetting".
+       -> Socket                    -- ^ the listening 'Socket'.
+       -> IO (InputStream ByteString, OutputStream ByteString, Context, N.SockAddr)
 accept prms sock = do
     (sock', sockAddr) <- N.accept sock
     E.bracketOnError (TLS.contextNew sock' prms) closeTLS $ \ ctx -> do
@@ -106,7 +108,7 @@ accept prms sock = do
         return (is, os, ctx, sockAddr)
 
 
--- | close a TLS 'Context'(and its underlying socket).
+-- | close a TLS 'Context' and its underlying socket.
 --
 closeTLS :: Context -> IO ()
 closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx

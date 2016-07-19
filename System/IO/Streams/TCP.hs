@@ -108,12 +108,11 @@ connectWithBufferSize host port bufsiz = do
 -- closed and deleted after the user handler runs.
 --
 -- /Since: 1.2.0.0./
-withConnection
-    :: HostName             -- ^ hostname to connect to
-    -> PortNumber           -- ^ port number to connect to
-    -> (InputStream ByteString -> OutputStream ByteString -> Socket -> IO a)
-          -- ^ Action to run with the new connection
-    -> IO a
+withConnection :: HostName             -- ^ hostname to connect to
+               -> PortNumber           -- ^ port number to connect to
+               -> ( InputStream ByteString
+                    -> OutputStream ByteString -> Socket -> IO a) -- ^ Action to run with the new connection
+               -> IO a
 withConnection host port action =
     E.bracket (connect host port) cleanup go
 
@@ -144,7 +143,7 @@ bindAndListen port maxc = do
                                   return sock
                      )
 
--- | accept a new connection from remote client, return a 'InputStream'/'OutputStream' pair,
+-- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream' pair,
 -- a new underlying 'Socket', and remote 'N.SockAddr',you should call 'bindAndListen' first.
 --
 -- This function will block current thread if there's no connection comming.

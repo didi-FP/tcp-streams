@@ -1,5 +1,7 @@
 -- | Helpers for setting up a tls connection with @tls@ package
 --
+-- Note, functions in this module will throw error if can't load certificates or CA store.
+--
 module Data.TLSSetting
     (   -- * choose a CAStore
         TrustedCAStore(..)
@@ -23,28 +25,25 @@ import qualified Network.TLS.Extra          as TLS
 import           Paths_tcp_streams          (getDataFileName)
 import qualified System.X509                as TLS_X509
 
--- | The whole point of TLS is that client have already trusted
--- some certificates 'TrustedCAStore',
--- Then client can use such certificates for validating,
--- if the certificates chain sent by server was issued by one of CA in 'TrustedCAStore',
--- The server will be trusted.
--- if server want to validate client's identity, it'll use the same scheme.
+-- | The whole point of TLS is that: a peer should have already trusted
+-- some certificates, which can be used for validating other peer's certificates.
+-- if the certificates sent by other side form a chain. and one of them is issued
+-- by one of 'TrustedCAStore', Then the peer will be trusted.
 --
 data TrustedCAStore
-    = SystemCAStore                   -- ^ provided by your operating system
-    | MozillaCAStore                  -- ^ provided by <https://curl.haxx.se/docs/caextract.html Mozilla>
-    | CustomCAStore FilePath          -- ^ provided by your self, a CA file can contain multiple certificates
-                                      --   to form a certificate chain
-
+    = SystemCAStore                   -- ^ provided by your operating system.
+    | MozillaCAStore                  -- ^ provided by <https://curl.haxx.se/docs/caextract.html Mozilla>.
+    | CustomCAStore FilePath          -- ^ provided by your self, the CA file can contain multiple certificates
+                                      --   as long as they can form a certificate chain.
   deriving (Show, Eq)
 
 mozillaCAStore :: IO FilePath
 mozillaCAStore = getDataFileName "mozillaCAStore20160420.pem"
 
 makeCAStore :: TrustedCAStore -> IO TLS_X509.CertificateStore
-makeCAStore SystemCAStore = TLS_X509.getSystemCertificateStore
-makeCAStore MozillaCAStore = makeCAStore . CustomCAStore =<< mozillaCAStore
-makeCAStore (CustomCAStore fp) = do
+makeCAStore SystemCAStore       = TLS_X509.getSystemCertificateStore
+makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< mozillaCAStore
+makeCAStore (CustomCAStore fp)  = do
     bs <- B.readFile fp
     let Right pems = TLS_X509.pemParseBS bs
     case mapM (TLS_X509.decodeSignedCertificate . TLS_X509.pemContent) pems of
@@ -58,11 +57,11 @@ makeCAStore (CustomCAStore fp) = do
 -- Note, tls's default validating method require server has v3 certificate.
 -- You can use openssl's V3 extension to issue such a certificate.
 --
-makeClientParams :: (HostName, ByteString)   -- ^ hostname which should match with certificate, with
-                                                -- identitifer to distinguish different certificate on the same hostname
-                                                -- (for example, service port)
-                    -> TrustedCAStore           -- ^ trusted certificates
-                    -> IO TLS.ClientParams
+makeClientParams :: (HostName, ByteString)  -- ^ hostname which should match with certificate, with
+                                            -- identitifer to distinguish different certificate on the same hostname
+                                            -- (for example, service port).
+                 -> TrustedCAStore          -- ^ trusted certificates.
+                 -> IO TLS.ClientParams
 makeClientParams (host, cid) tca = do
     caStore <- makeCAStore tca
     return (TLS.defaultParamsClient host cid)
@@ -79,14 +78,14 @@ makeClientParams (host, cid) tca = do
 --
 -- Also only accept v3 certificate.
 --
-makeClientParams' :: FilePath   -- ^ public certificate (X.509 format)
-                     -> [FilePath] -- ^ chain certificates (X.509 format)
-                                   --   the root of your certificate chain should be
-                                   --   already trusted by server, or tls will fail.
-                     -> FilePath   -- ^ private key associated
-                     -> (HostName, ByteString)  -- ^ same as 'makeTLSClientParams'
-                     -> TrustedCAStore -- ^ trusted certificates
-                     -> IO TLS.ClientParams
+makeClientParams' :: FilePath       -- ^ public certificate (X.509 format).
+                  -> [FilePath]     -- ^ chain certificates (X.509 format).
+                                    --   the root of your certificate chain should be
+                                    --   already trusted by server, or tls will fail.
+                  -> FilePath       -- ^ private key associated.
+                  -> (HostName, ByteString)  -- ^ same as 'makeTLSClientParams'.
+                  -> TrustedCAStore -- ^ trusted certificates.
+                  -> IO TLS.ClientParams
 makeClientParams' pub certs priv host_cid tca = do
     p <- makeClientParams host_cid tca
     c <- TLS.credentialLoadX509Chain pub certs priv
@@ -102,12 +101,12 @@ makeClientParams' pub certs priv host_cid tca = do
 
 -- | make a simple tls 'TLS.ServerParams' without validating client's certificate.
 --
-makeServerParams :: FilePath   -- ^ public certificate (X.509 format)
-                    -> [FilePath] -- ^ chain certificates (X.509 format)
-                                  --   the root of your certificate chain should be
-                                  --   already trusted by client, or tls will fail.
-                    -> FilePath   -- ^ private key associated
-                    -> IO TLS.ServerParams
+makeServerParams :: FilePath        -- ^ public certificate (X.509 format).
+                 -> [FilePath]      -- ^ chain certificates (X.509 format).
+                                    --   the root of your certificate chain should be
+                                    --   already trusted by client, or tls will fail.
+                 -> FilePath        -- ^ private key associated.
+                 -> IO TLS.ServerParams
 makeServerParams pub certs priv = do
     c <- TLS.credentialLoadX509Chain pub certs priv
     case c of
@@ -124,11 +123,11 @@ makeServerParams pub certs priv = do
 
 -- | make a tls 'TLS.ServerParams' that also validating client's certificate.
 --
-makeServerParams' :: FilePath   -- ^ public certificate (X.509 format)
-                     -> [FilePath] -- ^ chain certificates (X.509 format)
-                     -> FilePath   -- ^ private key associated
-                     -> TrustedCAStore  -- ^ server use these trusted certificates to validate client
-                     -> IO TLS.ServerParams
+makeServerParams' :: FilePath       -- ^ public certificate (X.509 format).
+                  -> [FilePath]     -- ^ chain certificates (X.509 format).
+                  -> FilePath       -- ^ private key associated.
+                  -> TrustedCAStore -- ^ server will use these certificates to validate clients.
+                  -> IO TLS.ServerParams
 makeServerParams' pub certs priv tca = do
     caStore <- makeCAStore tca
     p <- makeServerParams pub certs priv

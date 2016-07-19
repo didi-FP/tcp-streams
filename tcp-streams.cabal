@@ -13,6 +13,10 @@ extra-source-files:  ChangeLog.md, README.md
 data-files:          mozillaCAStore20160420.pem
 cabal-version:       >=1.10
 
+source-repository head
+  type:     git
+  location: git://github.com/winterland1989/tcp-streams.git
+
 library
   exposed-modules:      Data.TLSSetting
                     ,   System.IO.Streams.TCP
@@ -21,7 +25,7 @@ library
 
   other-modules:    Paths_tcp_streams
   -- other-extensions:    
-  build-depends:        base           >=4.8  && < 5.0
+  build-depends:        base           >=4.7  && < 5.0
                     ,   network        >=2.3  && < 3.0
                     ,   bytestring     >= 0.10.2.0
                     ,   io-streams     >= 1.2 && < 2.0
