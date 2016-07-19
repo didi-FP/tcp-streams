@@ -4,7 +4,7 @@
 -- with raw tcp. the default receive buffer size is 4096. sending is unbuffered,
 -- anything write into 'OutputStream' will be immediately send to underlying socket.
 --
--- You should handle 'IOError' when you read/write these streams for safty.
+-- You should handle 'IOError' when you read/write these streams for safety.
 -- Note, `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
 
 module System.IO.Streams.TCP (

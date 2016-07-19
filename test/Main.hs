@@ -5,7 +5,7 @@ module Main (main) where
 
 ------------------------------------------------------------------------------
 import           Control.Concurrent             (forkIO, newEmptyMVar, putMVar,
-                                                 takeMVar)
+                                                 takeMVar, threadDelay)
 import           Control.Monad                  (forever)
 import qualified Network.Socket                 as N
 import           System.Timeout                 (timeout)
@@ -88,8 +88,8 @@ testTLSSocket = testCase "network/socket" $
 
     client mvar resultMVar = do
         _ <- takeMVar mvar
-        cp <- TLS.makeClientParams ("Winter", "8889") (TLS.CustomCAStore "./test/cert/ca.pem")
-        (is, os, ctx) <- TLS.connect cp "127.0.0.1" 8889
+        cp <- TLS.makeClientParams (TLS.CustomCAStore "./test/cert/ca.pem")
+        (is, os, ctx) <- TLS.connect cp (Just "Winter") "127.0.0.1" 8889
         Stream.fromList ["", "ok"] >>= Stream.connectTo os
         Stream.read is >>= putMVar resultMVar  -- There's no shutdown in tls, so we won't get a 'Nothing'
         TLS.closeTLS ctx
@@ -100,7 +100,6 @@ testTLSSocket = testCase "network/socket" $
         putMVar mvar ()
         (is, os, ctx, sockAddr) <- TLS.accept sp sock
         os `Stream.connectTo` is
-
 
 ------------------------------------------------------------------------------
 
@@ -114,8 +113,8 @@ testHTTPS = testCase "network/socket" $
     assertEqual "ok" (Just 1024) x
   where
     go = do
-        cp <- TLS.makeClientParams ("www.baidu.com", "443") TLS.MozillaCAStore
-        (is, os, ctx) <- TLS.connect cp "www.baidu.com" 443
+        cp <- TLS.makeClientParams TLS.MozillaCAStore
+        (is, os, ctx) <- TLS.connect cp Nothing "www.baidu.com" 443
         Stream.write (Just "GET / HTTP/1.1\r\n") os
         Stream.write (Just "Host: www.baidu.com\r\n") os
         Stream.write (Just "\r\n") os

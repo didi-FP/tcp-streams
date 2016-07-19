@@ -5,7 +5,7 @@
 -- sending is unbuffered, anything write into 'OutputStream' will be
 -- immediately send to underlying socket.
 --
--- You should handle 'IOError' when you read/write these streams for safty.
+-- You should handle 'IOError' when you read/write these streams for safety.
 --
 module System.IO.Streams.TLS (
     -- * tls client
@@ -19,9 +19,11 @@ module System.IO.Streams.TLS (
   ) where
 
 import qualified Control.Exception     as E
+import           Data.Maybe            (fromMaybe)
 import           Control.Monad         (void)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as B
+import qualified Data.ByteString.Char8 as BC
 import           Data.ByteString.Lazy  (fromStrict)
 import           Network.Socket        (HostName, PortNumber, Socket)
 import qualified Network.Socket        as N
@@ -59,12 +61,16 @@ tlsToStreams ctx = do
 -- this operation will throw 'TLS.TLSException' on failure.
 --
 connect :: ClientParams         -- ^ check "Data.TLSSetting".
+        -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
+                                -- then use 'HostName' as subject name.
         -> HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Context)
-connect prms host port = do
+connect prms subname host port = do
+    let subname' = fromMaybe host subname
+        prms' = prms { TLS.clientServerIdentification = (subname', BC.pack (show port)) }
     sock <- TCP.connectSocket host port
-    E.bracketOnError (TLS.contextNew sock prms) closeTLS $ \ ctx -> do
+    E.bracketOnError (TLS.contextNew sock prms') closeTLS $ \ ctx -> do
         TLS.handshake ctx
         (is, os) <- tlsToStreams ctx
         return (is, os, ctx)
@@ -74,14 +80,15 @@ connect prms host port = do
 -- @('HostName', 'PortNumber')@ combination. The socket and TLS connection are
 -- closed and deleted after the user handler runs.
 --
-withConnection :: ClientParams         -- ^ check "Data.TLSSetting".
-               -> HostName             -- ^ hostname to connect to
-               -> PortNumber           -- ^ port number to connect to
+withConnection :: ClientParams
+               -> Maybe HostName
+               -> HostName
+               -> PortNumber
                -> (InputStream ByteString -> OutputStream ByteString -> Context -> IO a)
                        -- ^ Action to run with the new connection
                -> IO a
-withConnection prms host port action =
-    E.bracket (connect prms host port) cleanup go
+withConnection prms subname host port action =
+    E.bracket (connect prms subname host port) cleanup go
 
   where
     go (is, os, ctx) = action is os ctx
@@ -106,7 +113,6 @@ accept prms sock = do
         TLS.handshake ctx
         (is, os) <- tlsToStreams ctx
         return (is, os, ctx, sockAddr)
-
 
 -- | close a TLS 'Context' and its underlying socket.
 --

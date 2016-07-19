@@ -5,7 +5,6 @@
 module Data.TLSSetting
     (   -- * choose a CAStore
         TrustedCAStore(..)
-    ,   makeCAStore
         -- * make TLS settings
     ,   makeClientParams
     ,   makeClientParams'
@@ -13,13 +12,11 @@ module Data.TLSSetting
     ,   makeServerParams'
     ) where
 
-import           Data.ByteString            (ByteString)
 import qualified Data.ByteString            as B
 import           Data.Default.Class         (def)
 import qualified Data.PEM                   as TLS_X509
 import qualified Data.X509                  as TLS_X509
 import qualified Data.X509.CertificateStore as TLS_X509
-import           Network.Socket             (HostName)
 import qualified Network.TLS                as TLS
 import qualified Network.TLS.Extra          as TLS
 import           Paths_tcp_streams          (getDataFileName)
@@ -54,17 +51,17 @@ makeCAStore (CustomCAStore fp)  = do
 -- without providing client's own certificate. suitable for connecting server which don't
 -- validate clients.
 --
--- Note, tls's default validating method require server has v3 certificate.
--- You can use openssl's V3 extension to issue such a certificate.
+-- we defer setting of 'TLS.clientServerIdentification' to connecting phase.
 --
-makeClientParams :: (HostName, ByteString)  -- ^ hostname which should match with certificate, with
-                                            -- identitifer to distinguish different certificate on the same hostname
-                                            -- (for example, service port).
-                 -> TrustedCAStore          -- ^ trusted certificates.
+-- Note, tls's default validating method require server has v3 certificate.
+-- you can use openssl's V3 extension to issue such a certificate. or change 'TLS.ClientParams'
+-- before connecting.
+--
+makeClientParams :: TrustedCAStore          -- ^ trusted certificates.
                  -> IO TLS.ClientParams
-makeClientParams (host, cid) tca = do
+makeClientParams tca = do
     caStore <- makeCAStore tca
-    return (TLS.defaultParamsClient host cid)
+    return (TLS.defaultParamsClient "" B.empty)
         {   TLS.clientSupported = def { TLS.supportedCiphers = TLS.ciphersuite_all }
         ,   TLS.clientShared    = def
             {   TLS.sharedCAStore         = caStore
@@ -83,11 +80,10 @@ makeClientParams' :: FilePath       -- ^ public certificate (X.509 format).
                                     --   the root of your certificate chain should be
                                     --   already trusted by server, or tls will fail.
                   -> FilePath       -- ^ private key associated.
-                  -> (HostName, ByteString)  -- ^ same as 'makeTLSClientParams'.
                   -> TrustedCAStore -- ^ trusted certificates.
                   -> IO TLS.ClientParams
-makeClientParams' pub certs priv host_cid tca = do
-    p <- makeClientParams host_cid tca
+makeClientParams' pub certs priv tca = do
+    p <- makeClientParams tca
     c <- TLS.credentialLoadX509Chain pub certs priv
     case c of
         Right c' ->

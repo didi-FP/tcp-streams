@@ -1,6 +1,9 @@
 tcp-streams
 ===========
 
+[![Hackage](https://img.shields.io/hackage/v/tcp-streams.svg?style=flat)](http://hackage.haskell.org/package/tcp-streams)
+[![Build Status](https://travis-ci.org/winterland1989/tcp-streams.svg)](https://travis-ci.org/winterland1989/tcp-streams)
+
 One stop solution for tcp client and server with tls support!
 
 + use [io-streams](https://hackage.haskell.org/package/io-streams) for auto read buffering and easy streamming process.
@@ -16,12 +19,14 @@ Example
 import qualified System.IO.Streams         as Stream
 import qualified System.IO.Streams.TCP     as TCP
 import qualified System.IO.Streams.TLS     as TLS
+import qualified NetWork.Socket            as Socket
 
 --  TCP Client
 ...
 (is, os, sock) <- TCP.connect "127.0.0.1" 8888
 Stream.write os =<< ..  -- sending
-Stream.read is >>= ..   -- receiving
+Stream.read is >>=  ..  -- receiving
+Socket.close sock   ..  -- closing
 ...
 
 
@@ -37,9 +42,10 @@ Stream.read is >>= ..   -- receiving
 --  TLS Client
 ...
 cp <- TLS.makeTLSClientParams ("myCAName", "8888") (TLS.CustomCAStore "myCA.pem")
-(is, os, sock) <- TCP.connect "127.0.0.1" 8888
+(is, os, ctx) <- TCP.connect "127.0.0.1" 8888
 Stream.write os =<< ..  -- sending
-Stream.read is >>= ..   -- receiving
+Stream.read is >>=  ..  -- receiving
+TLS.closeTLS ctx    ..  -- closing
 ...
 
 
@@ -63,7 +69,6 @@ Stream.write (Just "\r\n") os
 bs <- Stream.readExactly 1024 is
 ...
 ```
-
 
 License
 -------
