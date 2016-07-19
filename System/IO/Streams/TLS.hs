@@ -1,33 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 -- | This module provides convenience functions for interfacing @io-streams@
--- with @HsOpenSSL@. It is intended to be imported @qualified@, e.g.:
+-- with @tls@. the default receive buffer size is decided by @tls@.
+-- sending is unbuffered, anything write into 'OutputStream' will be
+-- immediately send to underlying socket.
 --
--- @
--- import qualified "OpenSSL" as SSL
--- import qualified "OpenSSL.Session" as SSL
--- import qualified "System.IO.Streams.SSL" as SSLStreams
---
--- \ example :: IO ('InputStream' 'ByteString', 'OutputStream' 'ByteString')
--- example = SSL.'SSL.withOpenSSL' $ do
---     ctx <- SSL.'SSL.context'
---     SSL.'SSL.contextSetDefaultCiphers' ctx
---
--- \     \-\- Note: the location of the system certificates is system-dependent,
---     \-\- on Linux systems this is usually \"\/etc\/ssl\/certs\". This
---     \-\- step is optional if you choose to disable certificate verification
---     \-\- (not recommended!).
---     SSL.'SSL.contextSetCADirectory' ctx \"\/etc\/ssl\/certs\"
---     SSL.'SSL.contextSetVerificationMode' ctx $
---         SSL.'SSL.VerifyPeer' True True Nothing
---     SSLStreams.'connect' ctx "foo.com" 4444
--- @
---
-
-module System.IO.Streams.TLS
-  ( connectTLS
-  , withTLSConnection
+-- You should handle 'IOError' when you read/write these streams for safty.
+module System.IO.Streams.TLS (
+    -- * tls client
+    connect
+  , withConnection
+    -- * tls server
+  , accept
+    -- * helpers
   , tlsToStreams
+  , closeTLS
   ) where
 
 import qualified Control.Exception     as E
@@ -37,69 +24,57 @@ import qualified Data.ByteString       as B
 import           Data.ByteString.Lazy  (fromStrict)
 import           Network.Socket        (HostName, PortNumber, Socket)
 import qualified Network.Socket        as N
-import           Network.TLS           (ClientParams, Context)
+import           Network.TLS           (ClientParams, Context, ServerParams)
 import qualified Network.TLS           as TLS
 import           System.IO.Streams     (InputStream, OutputStream)
-import qualified System.IO.Streams     as Streams
-import qualified System.IO.Streams.Raw as Raw
+import qualified System.IO.Streams     as Stream
+import qualified System.IO.Streams.TCP as TCP
 
 
-------------------------------------------------------------------------------
-
-bUFSIZ :: Int
-bUFSIZ = 32752
-
-------------------------------------------------------------------------------
--- | Given an existing HsOpenSSL 'SSL' connection, produces an 'InputStream' \/
+-- | Given an existing TLS 'Context' connection, produces an 'InputStream' \/
 -- 'OutputStream' pair.
+--
 tlsToStreams :: Context             -- ^ TLS connection object
              -> IO (InputStream ByteString, OutputStream ByteString)
-tlsToStreams tls = do
-    is <- Streams.makeInputStream input
-    os <- Streams.makeOutputStream output
+tlsToStreams ctx = do
+    is <- Stream.makeInputStream input
+    os <- Stream.makeOutputStream output
     return (is, os)
   where
     input = do
-        s <- TLS.recvData tls
+        s <- TLS.recvData ctx
         return $! if B.null s then Nothing else Just s
 
     output Nothing  = return ()
-    output (Just s) = TLS.sendData tls (fromStrict s)
+    output (Just s) = TLS.sendData ctx (fromStrict s)
 
 
-------------------------------------------------------------------------------
--- | Convenience function for initiating an SSL connection to the given
+-- | Convenience function for initiating an TLS connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
 -- Note that sending an end-of-file to the returned 'OutputStream' will not
--- close the underlying SSL connection; to do that, call:
+-- close the underlying TLS connection; to do that, call 'closeTLS'
 --
--- @
--- SSL.'SSL.shutdown' ssl SSL.'SSL.Unidirectional'
--- maybe (return ()) 'N.close' $ SSL.'SSL.sslSocket' ssl
--- @
---
--- on the returned 'SSL' object.
-connectTLS
-    :: ClientParams         -- ^ SSL context. See the @HsOpenSSL@
-                                -- documentation for information on creating
-                                -- this.
-    -> HostName             -- ^ hostname to connect to
-    -> PortNumber           -- ^ port number to connect to
-    -> IO (InputStream ByteString, OutputStream ByteString, Context, Socket)
-connectTLS prms host port = do
-    sock <- Raw.connectSocket host port
-    tls <- TLS.contextNew sock prms
-    (is, os) <- tlsToStreams tls
-    return (is, os, tls, sock)
+-- this operation will throw 'TLS.TLSException' on failure.
+connect :: ClientParams         -- ^ SSL context. See the @HsOpenSSL@
+                                   -- documentation for information on creating
+                                   -- this.
+           -> HostName             -- ^ hostname to connect to
+           -> PortNumber           -- ^ port number to connect to
+           -> IO (InputStream ByteString, OutputStream ByteString, Context)
+connect prms host port = do
+    sock <- TCP.connectSocket host port
+    E.bracketOnError (TLS.contextNew sock prms) closeTLS $ \ ctx -> do
+        TLS.handshake ctx
+        (is, os) <- tlsToStreams ctx
+        return (is, os, ctx)
 
-------------------------------------------------------------------------------
--- | Convenience function for initiating an SSL connection to the given
+
+-- | Convenience function for initiating an TLS connection to the given
 -- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
 -- closed and deleted after the user handler runs.
 --
--- /Since: 1.2.0.0./
-withTLSConnection ::
+withConnection ::
      ClientParams         -- ^ SSL context. See the @HsOpenSSL@
                           -- documentation for information on creating
                           -- this.
@@ -108,18 +83,30 @@ withTLSConnection ::
   -> (InputStream ByteString -> OutputStream ByteString -> Context -> IO a)
           -- ^ Action to run with the new connection
   -> IO a
-withTLSConnection ctx host port action =
-    E.bracket (connectTLS ctx host port) cleanup go
+withConnection prms host port action =
+    E.bracket (connect prms host port) cleanup go
 
   where
-    go (is, os, tls, _) = action is os tls
+    go (is, os, ctx) = action is os ctx
 
-    cleanup (_, os, tls, sock) = E.mask_ $ do
-        eatException $! Streams.write Nothing os
-        eatException $! TLS.bye tls
-        eatException $! N.close sock
+    cleanup (_, os, ctx) = E.mask_ $
+        eatException $! Stream.write Nothing os >> closeTLS ctx
 
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
 
+-- | accept a new connection from remote client, return a 'InputStream'/'OutputStream' pair
+-- and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
+accept :: ServerParams -> Socket -> IO (InputStream ByteString, OutputStream ByteString, Context, N.SockAddr)
+accept prms sock = do
+    (sock', sockAddr) <- N.accept sock
+    E.bracketOnError (TLS.contextNew sock' prms) closeTLS $ \ ctx -> do
+        TLS.handshake ctx
+        (is, os) <- tlsToStreams ctx
+        return (is, os, ctx, sockAddr)
 
+
+-- | close a TLS 'Context'(and its underlying socket).
+--
+closeTLS :: Context -> IO ()
+closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx
