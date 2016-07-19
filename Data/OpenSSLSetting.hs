@@ -38,7 +38,6 @@ makeClientSSLContext tca = do
     caStore ctx
     SSL.contextSetDefaultCiphers ctx
     SSL.contextSetVerificationMode ctx (SSL.VerifyPeer True True Nothing)
-    caStore ctx
     return ctx
 
 -- | make a simple 'SSL.SSLContext' that will validate server and use tls connection
