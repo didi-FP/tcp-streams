@@ -1,4 +1,5 @@
 -- | Helpers for setting up a tls connection with @tls@ package
+-- for further customization, please refer to @tls@ package.
 --
 -- Note, functions in this module will throw error if can't load certificates or CA store.
 --

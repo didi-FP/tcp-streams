@@ -1,4 +1,5 @@
 -- | Helpers for setting up a tls connection with @HsOpenSSL@ package
+-- for further customization, please refer to @HsOpenSSL@ package.
 --
 -- Note, functions in this module will throw error if can't load certificates or CA store.
 --
@@ -44,12 +45,12 @@ makeClientSSLContext tca = do
 -- while providing client's own certificate. suitable for connecting server which
 -- validate clients.
 --
--- The certificates must be in PEM format and must be sorted starting with the subject's certificate
+-- The chain certificate must be in PEM format and must be sorted starting with the subject's certificate
 -- (actual client or server certificate), followed by intermediate CA certificates if applicable,
 -- and ending at the highest level (root) CA.
 --
 makeClientSSLContext' :: FilePath       -- ^ public certificate (X.509 format).
-                      -> [FilePath]       -- ^ chain certificate (X.509 format).
+                      -> [FilePath]     -- ^ chain certificate (X.509 format).
                       -> FilePath       -- ^ private key associated.
                       -> TrustedCAStore -- ^ server will use these certificates to validate clients.
                       -> IO SSL.SSLContext
@@ -64,7 +65,7 @@ makeClientSSLContext' pub certs priv tca = do
     SSL.contextSetVerificationMode ctx (SSL.VerifyPeer True True Nothing)
     return ctx
 
--- | make a simple 'SSL.SSLContext' without validating client's certificate.
+-- | make a simple 'SSL.SSLContext' for server without validating client's certificate.
 --
 makeServerSSLContext :: FilePath       -- ^ public certificate (X.509 format).
                      -> [FilePath]     -- ^ chain certificate (X.509 format).
@@ -78,7 +79,7 @@ makeServerSSLContext pub certs priv = do
     mapM_ (SSL.contextSetCertificateChainFile ctx) certs
     return ctx
 
--- | make a tls 'TLS.ServerParams' that also validating client's certificate.
+-- | make a 'SSL.SSLConext' that also validating client's certificate.
 --
 -- This's an alias to 'makeClientSSLContext'.
 --

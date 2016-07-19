@@ -1,18 +1,24 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | This module provides convenience functions for interfacing @io-streams@
--- with @HsOpenSSL@. It is intended to be imported @qualified@, e.g.:
+-- with @HsOpenSSL@. @ssl/SSL@ here stand for @HsOpenSSL@ library, not the
+-- deprecated SSL 2.0/3.0 protocol. the receive buffer size is 32752.
+-- sending is unbuffered, anything write into 'OutputStream' will be immediately
+-- send to underlying socket.
+--
+-- You should handle 'IOError' when you read/write these streams for safety.
 --
 -- Be sure to use 'withOpenSSL' wrap your operation before using any functions here.
 -- otherwise a segmentation fault will happen.
 --
 module System.IO.Streams.OpenSSL
-  ( -- * tls client
+  ( -- * client
     connect
   , withConnection
-    -- * tls server
+    -- * server
   , accept
-    -- helpers
+    -- * helpers
   , withOpenSSL
   , sslToStreams
   , closeSSL
@@ -32,16 +38,16 @@ import qualified OpenSSL.X509          as X509
 import           System.IO.Streams     (InputStream, OutputStream)
 import qualified System.IO.Streams     as Streams
 import qualified System.IO.Streams.TCP as TCP
-
+import           Data.Typeable         (Typeable)
 
 bUFSIZ :: Int
 bUFSIZ = 32752
 
 -- | Given an existing HsOpenSSL 'SSL' connection, produces an 'InputStream' \/
 -- 'OutputStream' pair.
-sslToStreams
-    :: SSL             -- ^ SSL connection object
-     -> IO (InputStream ByteString, OutputStream ByteString)
+--
+sslToStreams :: SSL             -- ^ SSL connection object
+             -> IO (InputStream ByteString, OutputStream ByteString)
 sslToStreams ssl = do
     is <- Streams.makeInputStream input
     os <- Streams.makeOutputStream output
@@ -71,7 +77,7 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
                                 -- documentation for information on creating
                                 -- this.
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
-                                -- then use 'HostName' as subject name.
+                                -- then we will try to verify 'HostName' as subject name.
         -> HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, SSL)
@@ -131,9 +137,9 @@ withConnection ctx subname host port action =
 -- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
 -- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
 --
--- this operation will throw 'TLS.TLSException' on failure.
+-- this operation will throw 'SSL.SomeSSLException' on failure.
 --
-accept :: SSL.SSLContext            -- ^ check "Data.TLSSetting".
+accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting".
        -> Socket                    -- ^ the listening 'Socket'.
        -> IO (InputStream ByteString, OutputStream ByteString, SSL.SSL, N.SockAddr)
 accept ctx sock = do
@@ -145,5 +151,5 @@ accept ctx sock = do
         (is, os) <- sslToStreams ssl
         return (is, os, ssl, sockAddr)
 
-data CertificateVerifyFail = CertificateVerifyFail deriving (Show, Eq)
+data CertificateVerifyFail = CertificateVerifyFail deriving (Show, Eq, Typeable)
 instance E.Exception CertificateVerifyFail

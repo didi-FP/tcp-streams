@@ -8,10 +8,10 @@
 -- You should handle 'IOError' when you read/write these streams for safety.
 --
 module System.IO.Streams.TLS (
-    -- * tls client
+    -- * client
     connect
   , withConnection
-    -- * tls server
+    -- * server
   , accept
     -- * helpers
   , tlsToStreams
@@ -66,7 +66,7 @@ closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx
 --
 connect :: ClientParams         -- ^ check "Data.TLSSetting".
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
-                                -- then use 'HostName' as subject name.
+                                -- then we will try to verify 'HostName' as subject name.
         -> HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Context)

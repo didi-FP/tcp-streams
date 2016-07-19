@@ -12,7 +12,7 @@ One stop solution for tcp client and server with tls support!
 
 Built-in mozilla CA list date: 2016/04/20. 
 
-For Mac user, install may need manually passing openssl path like this if linker can't find:
+Mac user may need manually passing openssl library path if linker can't find them:
 
 ```
 cabal install --extra-include-dirs=/usr/local/opt/openssl/include --extra-lib-dirs=/usr/local/opt/openssl/lib tcp-streams
