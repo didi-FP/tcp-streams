@@ -3,24 +3,24 @@
 -- Note, functions in this module will throw error if can't load certificates or CA store.
 --
 module Data.TLSSetting
-    (   -- * choose a CAStore
-        TrustedCAStore(..)
-        -- * make TLS settings
-    ,   makeClientParams
-    ,   makeClientParams'
-    ,   makeServerParams
-    ,   makeServerParams'
+    ( -- * choose a CAStore
+      TrustedCAStore(..)
+      -- * make TLS settings
+    , makeClientParams
+    , makeClientParams'
+    , makeServerParams
+    , makeServerParams'
     ) where
 
 import qualified Data.ByteString            as B
 import           Data.Default.Class         (def)
-import qualified Data.PEM                   as TLS_X509
-import qualified Data.X509                  as TLS_X509
-import qualified Data.X509.CertificateStore as TLS_X509
+import qualified Data.PEM                   as X509
+import qualified Data.X509                  as X509
+import qualified Data.X509.CertificateStore as X509
 import qualified Network.TLS                as TLS
 import qualified Network.TLS.Extra          as TLS
 import           Paths_tcp_streams          (getDataFileName)
-import qualified System.X509                as TLS_X509
+import qualified System.X509                as X509
 
 -- | The whole point of TLS is that: a peer should have already trusted
 -- some certificates, which can be used for validating other peer's certificates.
@@ -34,17 +34,14 @@ data TrustedCAStore
                                       --   as long as they can form a certificate chain.
   deriving (Show, Eq)
 
-mozillaCAStore :: IO FilePath
-mozillaCAStore = getDataFileName "mozillaCAStore20160420.pem"
-
-makeCAStore :: TrustedCAStore -> IO TLS_X509.CertificateStore
-makeCAStore SystemCAStore       = TLS_X509.getSystemCertificateStore
-makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< mozillaCAStore
+makeCAStore :: TrustedCAStore -> IO X509.CertificateStore
+makeCAStore SystemCAStore       = X509.getSystemCertificateStore
+makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< getDataFileName "mozillaCAStore.pem"
 makeCAStore (CustomCAStore fp)  = do
     bs <- B.readFile fp
-    let Right pems = TLS_X509.pemParseBS bs
-    case mapM (TLS_X509.decodeSignedCertificate . TLS_X509.pemContent) pems of
-        Right cas -> return (TLS_X509.makeCertificateStore cas)
+    let Right pems = X509.pemParseBS bs
+    case mapM (X509.decodeSignedCertificate . X509.pemContent) pems of
+        Right cas -> return (X509.makeCertificateStore cas)
 
 
 -- | make a simple tls 'TLS.ClientParams' that will validate server and use tls connection
@@ -106,7 +103,7 @@ makeServerParams :: FilePath        -- ^ public certificate (X.509 format).
 makeServerParams pub certs priv = do
     c <- TLS.credentialLoadX509Chain pub certs priv
     case c of
-        Right c'@(TLS_X509.CertificateChain c'', _) ->
+        Right c'@(X509.CertificateChain c'', _) ->
             return def
                 {   TLS.serverCACertificates =  c''
                 ,   TLS.serverShared = def

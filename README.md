@@ -8,7 +8,15 @@ One stop solution for tcp client and server with tls support!
 
 + use [io-streams](https://hackage.haskell.org/package/io-streams) for auto read buffering and easy streamming process.
 
-+ use [tls](http://hackage.haskell.org/package/tls) for tls connection.
++ use [tls](http://hackage.haskell.org/package/tls) or [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) for tls connection.
+
+Built-in mozilla CA list date: 2016/04/20. 
+
+For Mac user, install may need manually passing openssl path like this if linker can't find:
+
+```
+cabal install --extra-include-dirs=/usr/local/opt/openssl/include --extra-lib-dirs=/usr/local/opt/openssl/lib tcp-streams
+```
 
 Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0), for serialize/deserialize data. Happy hacking!
 
@@ -41,8 +49,8 @@ Stream.read is >>= ..   -- receiving
 
 --  TLS Client
 ...
-cp <- TLS.makeTLSClientParams ("myCAName", "8888") (TLS.CustomCAStore "myCA.pem")
-(is, os, ctx) <- TCP.connect "127.0.0.1" 8888
+cp <- TLS.makeTLSClientParams (TLS.CustomCAStore "myCA.pem")
+(is, os, ctx) <- TCP.connect cp (Just "myCAName") "127.0.0.1" 8888
 Stream.write os =<< ..  -- sending
 Stream.read is >>=  ..  -- receiving
 TLS.closeTLS ctx    ..  -- closing
@@ -61,8 +69,8 @@ Stream.read is >>= ..   -- receiving
 
 -- HTTPS Client
 ...
-cp <- TLS.makeClientParams ("www.baidu.com", "443") TLS.MozillaCAStore
-(is, os, ctx) <- TLS.connect cp "www.baidu.com" 443
+cp <- TLS.makeClientParams TLS.MozillaCAStore
+(is, os, ctx) <- TLS.connect cp Nothing "www.baidu.com" 443
 Stream.write (Just "GET / HTTP/1.1\r\n") os
 Stream.write (Just "Host: www.baidu.com\r\n") os
 Stream.write (Just "\r\n") os

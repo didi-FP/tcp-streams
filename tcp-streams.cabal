@@ -1,5 +1,5 @@
 name:                tcp-streams
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            One stop solution for tcp client and server with tls support.
 description:         One stop solution for tcp client and server with tls support.
 license:             BSD3
@@ -9,8 +9,11 @@ maintainer:          winterland1989@gmail.com
 -- copyright:           
 category:            Network
 build-type:          Simple
-extra-source-files:  ChangeLog.md, README.md
-data-files:          mozillaCAStore20160420.pem
+extra-source-files:     ChangeLog.md
+                    ,   README.md
+                    ,   test/cert/**
+
+data-files:          mozillaCAStore.pem
 cabal-version:       >=1.10
 
 source-repository head
@@ -19,8 +22,10 @@ source-repository head
 
 library
   exposed-modules:      Data.TLSSetting
+                        Data.OpenSSLSetting
                     ,   System.IO.Streams.TCP
                     ,   System.IO.Streams.TLS
+                    ,   System.IO.Streams.OpenSSL
 
 
   other-modules:    Paths_tcp_streams
@@ -34,6 +39,8 @@ library
                     ,   x509           >= 1.5 && < 2.0
                     ,   x509-system    >= 1.5 && < 2.0
                     ,   x509-store     >= 1.5 && < 2.0
+                    ,   HsOpenSSL      >=0.10.3 && <0.12
+                    ,   HsOpenSSL-x509-system == 0.1.*
                     ,   pem           
 
   -- hs-source-dirs:      
@@ -45,6 +52,7 @@ test-suite testsuite
   Hs-source-dirs:    src test
   main-is:           Main.hs
   default-language:  Haskell2010
+  ghc-options:    -Wall -threaded
   build-depends:        base
                     ,   io-streams
                     ,   tcp-streams

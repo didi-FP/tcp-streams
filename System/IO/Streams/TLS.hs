@@ -19,7 +19,6 @@ module System.IO.Streams.TLS (
   ) where
 
 import qualified Control.Exception     as E
-import           Data.Maybe            (fromMaybe)
 import           Control.Monad         (void)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as B
@@ -52,6 +51,11 @@ tlsToStreams ctx = do
     output (Just s) = TLS.sendData ctx (fromStrict s)
 
 
+-- | close a TLS 'Context' and its underlying socket.
+--
+closeTLS :: Context -> IO ()
+closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx
+
 -- | Convenience function for initiating an TLS connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
@@ -67,7 +71,7 @@ connect :: ClientParams         -- ^ check "Data.TLSSetting".
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Context)
 connect prms subname host port = do
-    let subname' = fromMaybe host subname
+    let subname' = maybe host id subname
         prms' = prms { TLS.clientServerIdentification = (subname', BC.pack (show port)) }
     sock <- TCP.connectSocket host port
     E.bracketOnError (TLS.contextNew sock prms') closeTLS $ \ ctx -> do
@@ -113,8 +117,3 @@ accept prms sock = do
         TLS.handshake ctx
         (is, os) <- tlsToStreams ctx
         return (is, os, ctx, sockAddr)
-
--- | close a TLS 'Context' and its underlying socket.
---
-closeTLS :: Context -> IO ()
-closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx

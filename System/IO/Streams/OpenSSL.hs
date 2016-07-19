@@ -1,0 +1,149 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
+-- | This module provides convenience functions for interfacing @io-streams@
+-- with @HsOpenSSL@. It is intended to be imported @qualified@, e.g.:
+--
+-- Be sure to use 'withOpenSSL' wrap your operation before using any functions here.
+-- otherwise a segmentation fault will happen.
+--
+module System.IO.Streams.OpenSSL
+  ( -- * tls client
+    connect
+  , withConnection
+    -- * tls server
+  , accept
+    -- helpers
+  , withOpenSSL
+  , sslToStreams
+  , closeSSL
+  , CertificateVerifyFail(..)
+  ) where
+
+import qualified Control.Exception     as E
+import           Control.Monad         (void, unless)
+import           Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as S
+import           Network.Socket        (HostName, PortNumber, Socket)
+import qualified Network.Socket        as N
+import           OpenSSL               (withOpenSSL)
+import           OpenSSL.Session       (SSL, SSLContext)
+import qualified OpenSSL.Session       as SSL
+import qualified OpenSSL.X509          as X509
+import           System.IO.Streams     (InputStream, OutputStream)
+import qualified System.IO.Streams     as Streams
+import qualified System.IO.Streams.TCP as TCP
+
+
+bUFSIZ :: Int
+bUFSIZ = 32752
+
+-- | Given an existing HsOpenSSL 'SSL' connection, produces an 'InputStream' \/
+-- 'OutputStream' pair.
+sslToStreams
+    :: SSL             -- ^ SSL connection object
+     -> IO (InputStream ByteString, OutputStream ByteString)
+sslToStreams ssl = do
+    is <- Streams.makeInputStream input
+    os <- Streams.makeOutputStream output
+    return (is, os)
+
+  where
+    input = do
+        s <- SSL.read ssl bUFSIZ
+        return $! if S.null s then Nothing else Just s
+
+    output Nothing  = return ()
+    output (Just s) = SSL.write ssl s
+
+closeSSL :: SSL.SSL -> IO ()
+closeSSL ssl = do
+    SSL.shutdown ssl SSL.Unidirectional
+    maybe (return ()) N.close (SSL.sslSocket ssl)
+
+-- | Convenience function for initiating an SSL connection to the given
+-- @('HostName', 'PortNumber')@ combination.
+--
+-- this function will try to verify server's identity,
+-- a 'CertificateVerifyFail' will be thrown if fail.
+-- it may throw 'SSL.SomeSSLException' too.
+--
+connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
+                                -- documentation for information on creating
+                                -- this.
+        -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
+                                -- then use 'HostName' as subject name.
+        -> HostName             -- ^ hostname to connect to
+        -> PortNumber           -- ^ port number to connect to
+        -> IO (InputStream ByteString, OutputStream ByteString, SSL)
+connect ctx subname host port = do
+    sock <- TCP.connectSocket host port
+    E.bracketOnError (SSL.connection ctx sock) closeSSL $ \ ssl -> do
+        SSL.connect ssl
+        trusted <- SSL.getVerifyResult ssl
+        cert <- SSL.getPeerCertificate ssl
+        subnames <- maybe (return []) (`X509.getSubjectName` False) cert
+        let cnname = lookup "CN" subnames
+            verified = case subname of
+                Just subname' -> maybe False (== subname') cnname
+                Nothing       -> maybe False (matchDomain host) cnname
+        unless (trusted && verified) (E.throwIO CertificateVerifyFail)
+        (is, os) <- sslToStreams ssl
+        return (is, os, ssl)
+
+  where
+    matchDomain :: String -> String -> Bool
+    matchDomain n1 n2 =
+        let n1' = (take 2 . reverse) (splitDot n1)
+            n2' = (take 2 . reverse) (splitDot n2)
+        in n1' == n2'
+    splitDot :: String -> [String]
+    splitDot "" = [""]
+    splitDot x  =
+        let (y, z) = break (== '.') x in
+        y : (if z == "" then [] else splitDot $ drop 1 z)
+
+-- | Convenience function for initiating an SSL connection to the given
+-- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
+-- closed and deleted after the user handler runs.
+--
+-- /Since: 1.2.0.0./
+withConnection :: SSLContext
+
+
+               -> Maybe String
+               -> HostName
+               -> PortNumber
+               -> (InputStream ByteString -> OutputStream ByteString -> SSL -> IO a)
+                       -- ^ Action to run with the new connection
+               -> IO a
+withConnection ctx subname host port action =
+    E.bracket (connect ctx subname host port) cleanup go
+
+  where
+    go (is, os, ssl) = action is os ssl
+
+    cleanup (_, os, ssl) = E.mask_ $
+        eatException $! Streams.write Nothing os >> closeSSL ssl
+
+    eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
+
+
+-- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
+-- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
+--
+-- this operation will throw 'TLS.TLSException' on failure.
+--
+accept :: SSL.SSLContext            -- ^ check "Data.TLSSetting".
+       -> Socket                    -- ^ the listening 'Socket'.
+       -> IO (InputStream ByteString, OutputStream ByteString, SSL.SSL, N.SockAddr)
+accept ctx sock = do
+    (sock', sockAddr) <- N.accept sock
+    E.bracketOnError (SSL.connection ctx sock') closeSSL $ \ ssl -> do
+        SSL.accept ssl
+        trusted <- SSL.getVerifyResult ssl
+        unless trusted (E.throwIO CertificateVerifyFail)
+        (is, os) <- sslToStreams ssl
+        return (is, os, ssl, sockAddr)
+
+data CertificateVerifyFail = CertificateVerifyFail deriving (Show, Eq)
+instance E.Exception CertificateVerifyFail
