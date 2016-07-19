@@ -70,9 +70,9 @@ Stream.read is >>= ..   -- receiving
 -- HTTPS Client
 ...
 cp <- TLS.makeClientParams TLS.MozillaCAStore
-(is, os, ctx) <- TLS.connect cp Nothing "www.baidu.com" 443
+(is, os, ctx) <- TLS.connect cp Nothing "www.google.com" 443
 Stream.write (Just "GET / HTTP/1.1\r\n") os
-Stream.write (Just "Host: www.baidu.com\r\n") os
+Stream.write (Just "Host: www.google.com\r\n") os
 Stream.write (Just "\r\n") os
 bs <- Stream.readExactly 1024 is
 ...
