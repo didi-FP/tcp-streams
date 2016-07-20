@@ -18,17 +18,22 @@ extra-source-files:     ChangeLog.md
 data-files:          mozillaCAStore.pem
 cabal-version:       >=1.10
 
+flag openssl
+  description:  Enable openssl support via @HsOpenSSL@
+  default:      True
+
 source-repository head
   type:     git
   location: git://github.com/winterland1989/tcp-streams.git
 
 library
   exposed-modules:      Data.TLSSetting
-                    ,   Data.OpenSSLSetting
                     ,   System.IO.Streams.TCP
                     ,   System.IO.Streams.TLS
-                    ,   System.IO.Streams.OpenSSL
 
+  if flag(openssl)
+    exposed-modules:    Data.OpenSSLSetting
+                    ,   System.IO.Streams.OpenSSL
 
   other-modules:    Paths_tcp_streams
   -- other-extensions:    
@@ -41,9 +46,11 @@ library
                     ,   x509           >= 1.5 && < 2.0
                     ,   x509-system    >= 1.5 && < 2.0
                     ,   x509-store     >= 1.5 && < 2.0
-                    ,   HsOpenSSL      >=0.10.3 && <0.12
-                    ,   HsOpenSSL-x509-system == 0.1.*
                     ,   pem           
+
+  if flag(openssl)
+    build-depends:      HsOpenSSL      >=0.10.3 && <0.12
+                    ,   HsOpenSSL-x509-system == 0.1.*
 
   -- hs-source-dirs:      
   default-language:    Haskell2010

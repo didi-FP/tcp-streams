@@ -18,6 +18,8 @@ Mac user may need manually passing openssl library path if linker can't find the
 cabal install --extra-include-dirs=/usr/local/opt/openssl/include --extra-lib-dirs=/usr/local/opt/openssl/lib tcp-streams
 ```
 
+You can disable openssl support with `cabal install -f -openssl`.
+
 Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0), for serialize/deserialize data. Happy hacking!
 
 Example

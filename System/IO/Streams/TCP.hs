@@ -103,8 +103,8 @@ connectWithBufferSize host port bufsiz = do
 
 
 
--- | Convenience function for initiating an SSL connection to the given
--- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
+-- | Convenience function for initiating an TCP connection to the given
+-- @('HostName', 'PortNumber')@ combination. The socket will be
 -- closed and deleted after the user handler runs.
 --
 -- /Since: 1.2.0.0./
