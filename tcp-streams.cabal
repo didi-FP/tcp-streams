@@ -1,5 +1,5 @@
 name:                tcp-streams
-version:             0.2.0.0
+version:             0.2.1.0
 synopsis:            One stop solution for tcp client and server with tls support.
 description:         One stop solution for tcp client and server with tls support.
 license:             BSD3

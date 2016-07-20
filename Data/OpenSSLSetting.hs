@@ -1,4 +1,4 @@
--- | Helpers for setting up a tls connection with @HsOpenSSL@ package
+-- | Helpers for setting up a tls connection with @HsOpenSSL@ package,
 -- for further customization, please refer to @HsOpenSSL@ package.
 --
 -- Note, functions in this module will throw error if can't load certificates or CA store.
@@ -80,7 +80,7 @@ makeServerSSLContext pub certs priv = do
 
 -- | make a 'SSL.SSLConext' that also validating client's certificate.
 --
--- This's an alias to 'makeClientSSLContext'.
+-- This's an alias to 'makeClientSSLContext''.
 --
 makeServerSSLContext' :: FilePath       -- ^ public certificate (X.509 format).
                       -> [FilePath]     -- ^ chain certificates (X.509 format).

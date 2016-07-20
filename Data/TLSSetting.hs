@@ -1,4 +1,4 @@
--- | Helpers for setting up a tls connection with @tls@ package
+-- | Helpers for setting up a tls connection with @tls@ package,
 -- for further customization, please refer to @tls@ package.
 --
 -- Note, functions in this module will throw error if can't load certificates or CA store.
@@ -31,8 +31,7 @@ import qualified System.X509                as X509
 data TrustedCAStore
     = SystemCAStore                   -- ^ provided by your operating system.
     | MozillaCAStore                  -- ^ provided by <https://curl.haxx.se/docs/caextract.html Mozilla>.
-    | CustomCAStore FilePath          -- ^ provided by your self, the CA file can contain multiple certificates
-                                      --   as long as they can form a certificate chain.
+    | CustomCAStore FilePath          -- ^ provided by your self, the CA file can contain multiple certificates.
   deriving (Show, Eq)
 
 makeCAStore :: TrustedCAStore -> IO X509.CertificateStore

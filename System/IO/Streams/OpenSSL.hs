@@ -112,7 +112,6 @@ connect ctx subname host port = do
 -- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
 -- closed and deleted after the user handler runs.
 --
--- /Since: 1.2.0.0./
 withConnection :: SSLContext
 
 

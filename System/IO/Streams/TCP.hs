@@ -34,6 +34,7 @@ bUFSIZ = 4096
 -- | resolve a 'HostName'/'PortNumber' combination.
 --
 -- This function throws an IO exception when resolve fail.
+--
 resolveAddrInfo :: HostName -> PortNumber -> IO (N.Family, N.SocketType, N.ProtocolNumber, N.SockAddr)
 resolveAddrInfo host port = do
     -- Partial function here OK, network will throw an exception rather than
@@ -55,14 +56,8 @@ resolveAddrInfo host port = do
 -- @('HostName', 'PortNumber')@ combination.
 --
 -- Note that sending an end-of-file to the returned 'OutputStream' will not
--- close the underlying Socket connection; to do that, call:
+-- close the underlying Socket connection.
 --
--- @
--- SSL.'SSL.shutdown' ssl SSL.'SSL.Unidirectional'
--- maybe (return ()) 'N.close' $ SSL.'SSL.sslSocket' ssl
--- @
---
--- on the returned 'SSL' object.
 connectSocket :: HostName             -- ^ hostname to connect to
               -> PortNumber           -- ^ port number to connect to
               -> IO Socket
@@ -82,6 +77,8 @@ connectSocket host port = do
 
 -- | connect to remote tcp server.
 --
+-- You may need to use 'E.bracket' pattern to enusre 'N.Socket' 's safety.
+--
 connect :: HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Socket)
@@ -92,6 +89,7 @@ connect host port = do
 
 
 -- | connect to remote tcp server with a receive buffer size.
+--
 connectWithBufferSize :: HostName             -- ^ hostname to connect to
                       -> PortNumber           -- ^ port number to connect to
                       -> Int                  -- ^ tcp read buffer size
@@ -107,7 +105,6 @@ connectWithBufferSize host port bufsiz = do
 -- @('HostName', 'PortNumber')@ combination. The socket will be
 -- closed and deleted after the user handler runs.
 --
--- /Since: 1.2.0.0./
 withConnection :: HostName             -- ^ hostname to connect to
                -> PortNumber           -- ^ port number to connect to
                -> ( InputStream ByteString
@@ -147,6 +144,7 @@ bindAndListen port maxc = do
 -- a new underlying 'Socket', and remote 'N.SockAddr',you should call 'bindAndListen' first.
 --
 -- This function will block current thread if there's no connection comming.
+--
 accept :: Socket -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
 accept sock = do
     (sock', sockAddr) <- N.accept sock
