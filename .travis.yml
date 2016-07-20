@@ -31,7 +31,7 @@ install:
  - cabal install --only-dependencies --enable-tests --enable-benchmarks
 
 before_script:
- - sudo ntpdate ntp.ubuntu.com
+ - sudo ntpdate -u ntp.ubuntu.com
  - date
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
