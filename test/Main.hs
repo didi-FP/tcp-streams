@@ -160,7 +160,7 @@ testHTTPS' = testCase "network/socket" $
     assertEqual "ok" (Just 1024) x
   where
     go = do
-        cp <- SSL.makeClientSSLContext SSL.MozillaCAStore
+        cp <- SSL.makeClientSSLContext SSL.SystemCAStore
         (is, os, ctx) <- SSL.connect cp Nothing "www.google.com" 443
         Stream.write (Just "GET / HTTP/1.1\r\n") os
         Stream.write (Just "Host: www.google.com\r\n") os
