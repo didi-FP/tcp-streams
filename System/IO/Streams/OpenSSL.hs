@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 
 -- | This module provides convenience functions for interfacing @io-streams@
 -- with @HsOpenSSL@. @ssl/SSL@ here stand for @HsOpenSSL@ library, not the
@@ -7,7 +6,8 @@
 -- sending is unbuffered, anything write into 'OutputStream' will be immediately
 -- send to underlying socket.
 --
--- You should handle 'IOError' when you read/write these streams for safety.
+-- The same exceptions rule which applied to TCP apply here, with addtional
+-- 'SSL.SomeSSLException` to be watched out.
 --
 -- Be sure to use 'withOpenSSL' wrap your operation before using any functions here.
 -- otherwise a segmentation fault will happen.
@@ -22,11 +22,10 @@ module System.IO.Streams.OpenSSL
   , withOpenSSL
   , sslToStreams
   , closeSSL
-  , CertificateVerifyFail(..)
   ) where
 
 import qualified Control.Exception     as E
-import           Control.Monad         (void, unless)
+import           Control.Monad         (unless, void)
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as S
 import           Network.Socket        (HostName, PortNumber, Socket)
@@ -38,7 +37,6 @@ import qualified OpenSSL.X509          as X509
 import           System.IO.Streams     (InputStream, OutputStream)
 import qualified System.IO.Streams     as Streams
 import qualified System.IO.Streams.TCP as TCP
-import           Data.Typeable         (Typeable)
 
 bUFSIZ :: Int
 bUFSIZ = 32752
@@ -57,6 +55,7 @@ sslToStreams ssl = do
     input = do
         s <- SSL.read ssl bUFSIZ
         return $! if S.null s then Nothing else Just s
+        `E.onException` return Nothing
 
     output Nothing  = return ()
     output (Just s) = SSL.write ssl s
@@ -70,8 +69,7 @@ closeSSL ssl = do
 -- @('HostName', 'PortNumber')@ combination.
 --
 -- this function will try to verify server's identity,
--- a 'CertificateVerifyFail' will be thrown if fail.
--- it may throw 'SSL.SomeSSLException' too.
+-- a 'SSL.ProtocolError' will be thrown if fail.
 --
 connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
                                 -- documentation for information on creating
@@ -92,16 +90,17 @@ connect ctx subname host port = do
             verified = case subname of
                 Just subname' -> maybe False (== subname') cnname
                 Nothing       -> maybe False (matchDomain host) cnname
-        unless (trusted && verified) (E.throwIO CertificateVerifyFail)
+        unless (trusted && verified) (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
         (is, os) <- sslToStreams ssl
         return (is, os, ssl)
 
   where
     matchDomain :: String -> String -> Bool
     matchDomain n1 n2 =
-        let n1' = (take 2 . reverse) (splitDot n1)
-            n2' = (take 2 . reverse) (splitDot n2)
-        in n1' == n2'
+        let n1' = reverse (splitDot n1)
+            n2' = reverse (splitDot n2)
+            cmp src target = src == "*" || src == target
+        in and (zipWith cmp n1' n2')
     splitDot :: String -> [String]
     splitDot "" = [""]
     splitDot x  =
@@ -146,9 +145,7 @@ accept ctx sock = do
     E.bracketOnError (SSL.connection ctx sock') closeSSL $ \ ssl -> do
         SSL.accept ssl
         trusted <- SSL.getVerifyResult ssl
-        unless trusted (E.throwIO CertificateVerifyFail)
+        unless trusted (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
         (is, os) <- sslToStreams ssl
         return (is, os, ssl, sockAddr)
 
-data CertificateVerifyFail = CertificateVerifyFail deriving (Show, Eq, Typeable)
-instance E.Exception CertificateVerifyFail

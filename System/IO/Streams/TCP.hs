@@ -4,8 +4,15 @@
 -- with raw tcp. the default receive buffer size is 4096. sending is unbuffered,
 -- anything write into 'OutputStream' will be immediately send to underlying socket.
 --
--- You should handle 'IOError' when you read/write these streams for safety.
--- Note, `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
+-- Reading 'InputStream' will block until message comming, for example
+-- `System.IO.Streams.ByteString.readExactly 1024` will block until 1024 bytes are available.
+--
+-- When socket is closed, the 'InputStream' will be closed too(further reading 'Nothing'),
+-- no exception will be thrown. You still should handle 'IOError' when you write to  'OutputStream' for safety,
+-- but no exception doesn't essentially mean a successful write, especially under bad network
+-- environment(broken wire for example).
+--
+-- `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
 
 module System.IO.Streams.TCP (
     -- * tcp client
@@ -18,22 +25,23 @@ module System.IO.Streams.TCP (
   , accept
   ) where
 
+import           Control.Concurrent.MVar   (withMVar)
 import qualified Control.Exception         as E
-import           Control.Monad             (void)
-import           Data.ByteString.Char8     (ByteString)
-import           Network.Socket            (HostName, PortNumber, Socket)
+import           Control.Monad             (unless, void)
+import           Data.ByteString           (ByteString)
+import qualified Data.ByteString           as B
+import           Network.Socket            (HostName, PortNumber, Socket (..))
 import qualified Network.Socket            as N
+import qualified Network.Socket.ByteString as NB
 import           System.IO.Streams         (InputStream, OutputStream)
 import qualified System.IO.Streams         as Stream
-import           System.IO.Streams.Network (socketToStreamsWithBufferSize)
-
 
 bUFSIZ :: Int
 bUFSIZ = 4096
 
 -- | resolve a 'HostName'/'PortNumber' combination.
 --
--- This function throws an IO exception when resolve fail.
+-- This function throws an 'IOError' when resolve fail.
 --
 resolveAddrInfo :: HostName -> PortNumber -> IO (N.Family, N.SocketType, N.ProtocolNumber, N.SockAddr)
 resolveAddrInfo host port = do
@@ -74,7 +82,6 @@ connectSocket host port = do
                      )
 
 
-
 -- | connect to remote tcp server.
 --
 -- You may need to use 'E.bracket' pattern to enusre 'N.Socket' 's safety.
@@ -82,11 +89,7 @@ connectSocket host port = do
 connect :: HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Socket)
-connect host port = do
-    sock <- connectSocket host port
-    (is, os) <- socketToStreamsWithBufferSize bUFSIZ sock
-    return (is, os, sock)
-
+connect host port = connectWithBufferSize host port bUFSIZ
 
 -- | connect to remote tcp server with a receive buffer size.
 --
@@ -143,10 +146,31 @@ bindAndListen port maxc = do
 -- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream' pair,
 -- a new underlying 'Socket', and remote 'N.SockAddr',you should call 'bindAndListen' first.
 --
--- This function will block current thread if there's no connection comming.
+-- This function will block if there's no connection comming.
 --
 accept :: Socket -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
 accept sock = do
     (sock', sockAddr) <- N.accept sock
     (is, os) <- socketToStreamsWithBufferSize bUFSIZ sock'
     return (is, os, sock', sockAddr)
+
+socketToStreamsWithBufferSize
+    :: Int                      -- ^ how large the receive buffer should be
+    -> Socket                   -- ^ network socket
+    -> IO (InputStream ByteString, OutputStream ByteString)
+socketToStreamsWithBufferSize bufsiz sock@(MkSocket _ _ _ _ statusMVar) = do
+    is <- Stream.makeInputStream input
+    os <- Stream.makeOutputStream output
+    return (is, os)
+
+  where
+    input = withMVar statusMVar $ \ status ->
+        case status of
+            N.Connected -> do
+                s <- NB.recv sock bufsiz
+                return $! if B.null s then Nothing else Just s
+                `E.onException` return Nothing
+            _ -> return Nothing
+
+    output Nothing  = return ()
+    output (Just s) = unless (B.null s) (NB.sendAll sock s)

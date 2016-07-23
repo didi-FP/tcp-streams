@@ -5,7 +5,8 @@
 -- sending is unbuffered, anything write into 'OutputStream' will be
 -- immediately send to underlying socket.
 --
--- You should handle 'IOError' when you read/write these streams for safety.
+-- The same exceptions rule which applied to TCP apply here, with addtional
+-- 'TLS.TLSException' to be watched out.
 --
 module System.IO.Streams.TLS (
     -- * client
@@ -46,6 +47,7 @@ tlsToStreams ctx = do
     input = do
         s <- TLS.recvData ctx
         return $! if B.null s then Nothing else Just s
+        `E.onException` return Nothing
 
     output Nothing  = return ()
     output (Just s) = TLS.sendData ctx (fromStrict s)

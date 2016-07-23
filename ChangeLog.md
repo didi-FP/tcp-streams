@@ -1,5 +1,9 @@
 # Revision history for tcp-simple
 
+## 0.2.2.0
+
+* Clean and document exception behavior.
+
 ## 0.2.1.0
 
 * Fix broken document.
