@@ -53,7 +53,7 @@ tlsToStreams ctx = do
     output (Just s) = TLS.sendData ctx (fromStrict s)
 {-# INLINABLE tlsToStreams #-}
 
--- | close a TLS 'Context' and its underlying socket.
+-- | Close a TLS 'Context' and its underlying socket.
 --
 closeTLS :: Context -> IO ()
 closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx
@@ -105,7 +105,7 @@ withConnection prms subname host port action =
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
 
--- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
+-- | Accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
 -- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
 --
 -- this operation will throw 'TLS.TLSException' on failure.

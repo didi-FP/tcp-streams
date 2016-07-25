@@ -133,7 +133,7 @@ withConnection ctx subname host port action =
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
 
--- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
+-- | Accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
 -- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
 --
 -- this operation will throw 'SSL.SomeSSLException' on failure.

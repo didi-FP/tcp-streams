@@ -20,11 +20,13 @@ module System.IO.Streams.TCP (
   , connect
   , connectWithBufferSize
   , withConnection
-  , socketToStreamsWithBufferSize
     -- * tcp server
   , bindAndListen
   , accept
   , acceptWithBufferSize
+    -- * helpers
+  , socketToStreamsWithBufferSize
+  , N.close
   ) where
 
 import           Control.Concurrent.MVar   (withMVar)
@@ -41,7 +43,7 @@ import qualified System.IO.Streams         as Stream
 bUFSIZ :: Int
 bUFSIZ = 4096
 
--- | resolve a 'HostName'/'PortNumber' combination.
+-- | Resolve a 'HostName'/'PortNumber' combination.
 --
 -- This function throws an 'IOError' when resolve fail.
 --
@@ -84,7 +86,7 @@ connectSocket host port = do
                      )
 
 
--- | connect to remote tcp server.
+-- | Connect to remote tcp server.
 --
 -- You may need to use 'E.bracket' pattern to enusre 'N.Socket' 's safety.
 --
@@ -93,7 +95,7 @@ connect :: HostName             -- ^ hostname to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Socket)
 connect host port = connectWithBufferSize host port bUFSIZ
 
--- | connect to remote tcp server with adjustable receive buffer size.
+-- | Connect to remote tcp server with adjustable receive buffer size.
 --
 connectWithBufferSize :: HostName             -- ^ hostname to connect to
                       -> PortNumber           -- ^ port number to connect to
@@ -126,7 +128,7 @@ withConnection host port action =
 
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
--- | bind and listen on port with a limit on connection count.
+-- | Bind and listen on port with a limit on connection count.
 --
 bindAndListen :: PortNumber -> Int -> IO Socket
 bindAndListen port maxc = do
@@ -144,7 +146,7 @@ bindAndListen port maxc = do
                                   return sock
                      )
 
--- | accept a new connection from remote client, return a 'InputStream' / 'OutputStream' pair,
+-- | Accept a new connection from remote client, return a 'InputStream' / 'OutputStream' pair,
 -- a new underlying 'Socket', and remote 'N.SockAddr',you should call 'bindAndListen' first.
 --
 -- This function will block if there's no connection comming.
@@ -162,7 +164,7 @@ acceptWithBufferSize sock bufsiz = do
     return (is, os, sock', sockAddr)
 
 
--- | convert a 'Socket' into a streams pair, catch 'IOException's on receiving and close 'InputStream'.
+-- | Convert a 'Socket' into a streams pair, catch 'IOException's on receiving and close 'InputStream'.
 -- You still should handle 'IOError' when you write to  'OutputStream' for safety,
 -- but no exception doesn't essentially mean a successful write, especially under bad network
 -- environment(broken wire for example).
