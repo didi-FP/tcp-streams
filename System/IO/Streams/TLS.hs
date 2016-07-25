@@ -44,14 +44,14 @@ tlsToStreams ctx = do
     os <- Stream.makeOutputStream output
     return (is, os)
   where
-    input = do
+    input = ( do
         s <- TLS.recvData ctx
         return $! if B.null s then Nothing else Just s
-        `E.onException` return Nothing
+        ) `E.catch` (\(_::E.SomeException) -> return Nothing)
 
     output Nothing  = return ()
     output (Just s) = TLS.sendData ctx (fromStrict s)
-
+{-# INLINABLE tlsToStreams #-}
 
 -- | close a TLS 'Context' and its underlying socket.
 --

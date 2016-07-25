@@ -61,9 +61,8 @@ testRawSocket = testCase "network/socket" $
         sock <- Raw.bindAndListen 8888 1024
         putMVar mvar ()
         (is, os, csock, _) <- Raw.accept sock
-        Stream.toList is >>= flip Stream.writeList os
-        os `Stream.connectTo` is
-        N.sClose csock
+        is' <- Stream.atEndOfInput (N.close csock) is
+        os `Stream.connectTo` is'
         N.sClose sock
 
 ------------------------------------------------------------------------------
@@ -98,9 +97,10 @@ testTLSSocket = testCase "network/socket" $
         sp <- TLS.makeServerParams "./test/cert/server.crt" [] "./test/cert/server.key"
         sock <- Raw.bindAndListen 8889 1024
         putMVar mvar ()
-        (is, os, _, _) <- TLS.accept sp sock
-        os `Stream.connectTo` is
-
+        (is, os, tls, _) <- TLS.accept sp sock
+        is' <- Stream.atEndOfInput (Stream.write Nothing os >> TLS.closeTLS tls) is
+        os `Stream.connectTo` is'
+        N.sClose sock
 
 testHTTPS :: Test
 testHTTPS = testCase "network/socket" $
@@ -150,8 +150,10 @@ testSSLSocket = testCase "network/socket" $
         sp <- SSL.makeServerSSLContext "./test/cert/server.crt" [] "./test/cert/server.key"
         sock <- Raw.bindAndListen 8890 1024
         putMVar mvar ()
-        (is, os, _, _) <- SSL.accept sp sock
-        os `Stream.connectTo` is
+        (is, os, ssl, _) <- SSL.accept sp sock
+        is' <- Stream.atEndOfInput (Stream.write Nothing os >> SSL.closeSSL ssl) is
+        os `Stream.connectTo` is'
+        N.close sock
 
 testHTTPS' :: Test
 testHTTPS' = testCase "network/socket" $

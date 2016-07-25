@@ -1,5 +1,9 @@
 # Revision history for tcp-simple
 
+## 0.2.3.0
+
+* Add `acceptWithBufferSize`, `socketToStreamsWithBufferSize`, fix recv exception handler.
+
 ## 0.2.2.0
 
 * Clean and document exception behavior.

@@ -4,10 +4,10 @@
 -- with raw tcp. the default receive buffer size is 4096. sending is unbuffered,
 -- anything write into 'OutputStream' will be immediately send to underlying socket.
 --
--- Reading 'InputStream' will block until message comming, for example
--- `System.IO.Streams.ByteString.readExactly 1024` will block until 1024 bytes are available.
+-- Reading 'InputStream' will block until GHC IO manager find data is ready,
+-- for example 'System.IO.Streams.ByteString.readExactly 1024' will block until 1024 bytes are available.
 --
--- When socket is closed, the 'InputStream' will be closed too(further reading 'Nothing'),
+-- When socket is closed, the 'InputStream' will be closed too(further reading will return 'Nothing'),
 -- no exception will be thrown. You still should handle 'IOError' when you write to  'OutputStream' for safety,
 -- but no exception doesn't essentially mean a successful write, especially under bad network
 -- environment(broken wire for example).
@@ -20,9 +20,11 @@ module System.IO.Streams.TCP (
   , connect
   , connectWithBufferSize
   , withConnection
+  , socketToStreamsWithBufferSize
     -- * tcp server
   , bindAndListen
   , accept
+  , acceptWithBufferSize
   ) where
 
 import           Control.Concurrent.MVar   (withMVar)
@@ -91,7 +93,7 @@ connect :: HostName             -- ^ hostname to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, Socket)
 connect host port = connectWithBufferSize host port bUFSIZ
 
--- | connect to remote tcp server with a receive buffer size.
+-- | connect to remote tcp server with adjustable receive buffer size.
 --
 connectWithBufferSize :: HostName             -- ^ hostname to connect to
                       -> PortNumber           -- ^ port number to connect to
@@ -119,9 +121,8 @@ withConnection host port action =
   where
     go (is, os, sock) = action is os sock
 
-    cleanup (_, os, sock) = E.mask_ $ do
-        eatException $! Stream.write Nothing os
-        eatException $! N.close sock
+    cleanup (_, os, sock) = E.mask_ $
+        eatException $! Stream.write Nothing os >> N.close sock
 
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
@@ -149,11 +150,26 @@ bindAndListen port maxc = do
 -- This function will block if there's no connection comming.
 --
 accept :: Socket -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
-accept sock = do
+accept sock = acceptWithBufferSize sock bUFSIZ
+
+
+-- | accept a connection with adjustable receive buffer size.
+--
+acceptWithBufferSize :: Socket -> Int -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
+acceptWithBufferSize sock bufsiz = do
     (sock', sockAddr) <- N.accept sock
-    (is, os) <- socketToStreamsWithBufferSize bUFSIZ sock'
+    (is, os) <- socketToStreamsWithBufferSize bufsiz sock'
     return (is, os, sock', sockAddr)
 
+
+-- | convert a 'Socket' into a streams pair, catch 'IOException's on receiving and close 'InputStream'.
+-- You still should handle 'IOError' when you write to  'OutputStream' for safety,
+-- but no exception doesn't essentially mean a successful write, especially under bad network
+-- environment(broken wire for example).
+--
+-- During receiving, the status 'Control.Concurrent.MVar.MVar' is locked, so that a cleanup thread
+-- can't affect receiving until finish.
+--
 socketToStreamsWithBufferSize
     :: Int                      -- ^ how large the receive buffer should be
     -> Socket                   -- ^ network socket
@@ -162,15 +178,15 @@ socketToStreamsWithBufferSize bufsiz sock@(MkSocket _ _ _ _ statusMVar) = do
     is <- Stream.makeInputStream input
     os <- Stream.makeOutputStream output
     return (is, os)
-
   where
     input = withMVar statusMVar $ \ status ->
         case status of
-            N.Connected -> do
+            N.Connected -> ( do
                 s <- NB.recv sock bufsiz
                 return $! if B.null s then Nothing else Just s
-                `E.onException` return Nothing
+                ) `E.catch` (\(_::E.IOException) -> return Nothing)
             _ -> return Nothing
 
     output Nothing  = return ()
     output (Just s) = unless (B.null s) (NB.sendAll sock s)
+{-# INLINABLE socketToStreamsWithBufferSize #-}

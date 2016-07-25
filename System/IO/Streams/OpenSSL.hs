@@ -52,13 +52,14 @@ sslToStreams ssl = do
     return (is, os)
 
   where
-    input = do
+    input = ( do
         s <- SSL.read ssl bUFSIZ
         return $! if S.null s then Nothing else Just s
-        `E.onException` return Nothing
+        ) `E.catch` (\(_::E.SomeException) -> return Nothing)
 
     output Nothing  = return ()
     output (Just s) = SSL.write ssl s
+{-# INLINABLE sslToStreams #-}
 
 closeSSL :: SSL.SSL -> IO ()
 closeSSL ssl = do
