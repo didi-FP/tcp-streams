@@ -56,7 +56,8 @@ tlsToStreams ctx = do
 -- | Close a TLS 'Context' and its underlying socket.
 --
 closeTLS :: Context -> IO ()
-closeTLS ctx = TLS.bye ctx >> TLS.contextClose ctx
+closeTLS ctx = (TLS.bye ctx >> TLS.contextClose ctx) -- sometimes socket was closed before 'TLS.bye'
+    `E.catch` (\(_::E.SomeException) -> return ())   -- so we catch the 'Broken pipe' error here
 
 -- | Convenience function for initiating an TLS connection to the given
 -- @('HostName', 'PortNumber')@ combination.

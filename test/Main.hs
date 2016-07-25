@@ -61,8 +61,8 @@ testRawSocket = testCase "network/socket" $
         sock <- Raw.bindAndListen 8888 1024
         putMVar mvar ()
         (is, os, csock, _) <- Raw.accept sock
-        is' <- Stream.atEndOfInput (N.close csock) is
-        os `Stream.connectTo` is'
+        os' <- Stream.atEndOfOutput (N.close csock) os
+        os' `Stream.connectTo` is
 
 ------------------------------------------------------------------------------
 
@@ -97,11 +97,11 @@ testTLSSocket = testCase "network/socket" $
         sock <- Raw.bindAndListen 8889 1024
         putMVar mvar ()
         (is, os, tls, _) <- TLS.accept sp sock
-        is' <- Stream.atEndOfInput (Stream.write Nothing os >> TLS.closeTLS tls) is
-        os `Stream.connectTo` is'
+        os' <- Stream.atEndOfOutput (TLS.closeTLS tls) os
+        os' `Stream.connectTo` is
 
 testHTTPS :: Test
-testHTTPS = testCase "network/socket" $
+testHTTPS = testCase "network/https" $
     N.withSocketsDo $ do
     x <- timeout (10 * 10^(6::Int)) go
     assertEqual "ok" (Just 1024) x
@@ -149,11 +149,11 @@ testSSLSocket = testCase "network/socket" $
         sock <- Raw.bindAndListen 8890 1024
         putMVar mvar ()
         (is, os, ssl, _) <- SSL.accept sp sock
-        is' <- Stream.atEndOfInput (Stream.write Nothing os >> SSL.closeSSL ssl) is
-        os `Stream.connectTo` is'
+        os' <- Stream.atEndOfOutput (SSL.closeSSL ssl) os
+        os' `Stream.connectTo` is
 
 testHTTPS' :: Test
-testHTTPS' = testCase "network/socket" $
+testHTTPS' = testCase "network/https" $
     N.withSocketsDo . SSL.withOpenSSL $ do
     x <- timeout (10 * 10^(6::Int)) go
     assertEqual "ok" (Just 1024) x
