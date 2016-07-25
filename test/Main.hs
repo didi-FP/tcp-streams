@@ -63,7 +63,6 @@ testRawSocket = testCase "network/socket" $
         (is, os, csock, _) <- Raw.accept sock
         is' <- Stream.atEndOfInput (N.close csock) is
         os `Stream.connectTo` is'
-        N.sClose sock
 
 ------------------------------------------------------------------------------
 
@@ -100,7 +99,6 @@ testTLSSocket = testCase "network/socket" $
         (is, os, tls, _) <- TLS.accept sp sock
         is' <- Stream.atEndOfInput (Stream.write Nothing os >> TLS.closeTLS tls) is
         os `Stream.connectTo` is'
-        N.sClose sock
 
 testHTTPS :: Test
 testHTTPS = testCase "network/socket" $
@@ -153,7 +151,6 @@ testSSLSocket = testCase "network/socket" $
         (is, os, ssl, _) <- SSL.accept sp sock
         is' <- Stream.atEndOfInput (Stream.write Nothing os >> SSL.closeSSL ssl) is
         os `Stream.connectTo` is'
-        N.close sock
 
 testHTTPS' :: Test
 testHTTPS' = testCase "network/socket" $
