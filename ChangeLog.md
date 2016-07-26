@@ -1,5 +1,10 @@
 # Revision history for tcp-simple
 
+## 0.3.0.0
+
+* Add qualified notes, rename `closeTLS/closeSSL` to `close`.
+* fix `Bad pipe` error in tls's `close`
+
 ## 0.2.3.0
 
 * Add `acceptWithBufferSize`, `socketToStreamsWithBufferSize`, fix recv exception handler.

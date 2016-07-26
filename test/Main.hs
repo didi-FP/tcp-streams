@@ -90,14 +90,14 @@ testTLSSocket = testCase "network/socket" $
         (is, os, ctx) <- TLS.connect cp (Just "Winter") "127.0.0.1" 8889
         Stream.fromList ["", "ok"] >>= Stream.connectTo os
         Stream.read is >>= putMVar resultMVar  -- There's no shutdown in tls, so we won't get a 'Nothing'
-        TLS.closeTLS ctx
+        TLS.close ctx
 
     server mvar = do
         sp <- TLS.makeServerParams "./test/cert/server.crt" [] "./test/cert/server.key"
         sock <- Raw.bindAndListen 8889 1024
         putMVar mvar ()
         (is, os, tls, _) <- TLS.accept sp sock
-        os' <- Stream.atEndOfOutput (TLS.closeTLS tls) os
+        os' <- Stream.atEndOfOutput (TLS.close tls) os
         os' `Stream.connectTo` is
 
 testHTTPS :: Test
@@ -113,7 +113,7 @@ testHTTPS = testCase "network/https" $
         Stream.write (Just "Host: www.google.com\r\n") os
         Stream.write (Just "\r\n") os
         bs <- Stream.readExactly 1024 is
-        TLS.closeTLS ctx
+        TLS.close ctx
         return (B.length bs)
 
 ------------------------------------------------------------------------------
@@ -142,14 +142,14 @@ testSSLSocket = testCase "network/socket" $
         (is, os, ctx) <- SSL.connect cp (Just "Winter") "127.0.0.1" 8890
         Stream.fromList ["", "ok"] >>= Stream.connectTo os
         Stream.read is >>= putMVar resultMVar  -- There's no shutdown in tls, so we won't get a 'Nothing'
-        SSL.closeSSL ctx
+        SSL.close ctx
 
     server mvar = do
         sp <- SSL.makeServerSSLContext "./test/cert/server.crt" [] "./test/cert/server.key"
         sock <- Raw.bindAndListen 8890 1024
         putMVar mvar ()
         (is, os, ssl, _) <- SSL.accept sp sock
-        os' <- Stream.atEndOfOutput (SSL.closeSSL ssl) os
+        os' <- Stream.atEndOfOutput (SSL.close ssl) os
         os' `Stream.connectTo` is
 
 testHTTPS' :: Test
@@ -165,7 +165,7 @@ testHTTPS' = testCase "network/https" $
         Stream.write (Just "Host: www.google.com\r\n") os
         Stream.write (Just "\r\n") os
         bs <- Stream.readExactly 1024 is
-        SSL.closeSSL ctx
+        SSL.close ctx
         return (B.length bs)
 
 

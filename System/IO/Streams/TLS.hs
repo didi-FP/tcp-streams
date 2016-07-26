@@ -8,15 +8,22 @@
 -- The same exceptions rule which applied to TCP apply here, with addtional
 -- 'TLS.TLSException' to be watched out.
 --
-module System.IO.Streams.TLS (
-    -- * client
+-- This module is intended to be imported @qualified@, e.g.:
+--
+-- @
+-- import qualified "Data.TLSSetting"       as TLS
+-- import qualified "System.IO.Streams.TLS" as TLS
+-- @
+--
+module System.IO.Streams.TLS
+  ( -- * client
     connect
   , withConnection
     -- * server
   , accept
     -- * helpers
   , tlsToStreams
-  , closeTLS
+  , close
   ) where
 
 import qualified Control.Exception     as E
@@ -55,15 +62,15 @@ tlsToStreams ctx = do
 
 -- | Close a TLS 'Context' and its underlying socket.
 --
-closeTLS :: Context -> IO ()
-closeTLS ctx = (TLS.bye ctx >> TLS.contextClose ctx) -- sometimes socket was closed before 'TLS.bye'
+close :: Context -> IO ()
+close ctx = (TLS.bye ctx >> TLS.contextClose ctx) -- sometimes socket was closed before 'TLS.bye'
     `E.catch` (\(_::E.SomeException) -> return ())   -- so we catch the 'Broken pipe' error here
 
 -- | Convenience function for initiating an TLS connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
 -- Note that sending an end-of-file to the returned 'OutputStream' will not
--- close the underlying TLS connection; to do that, call 'closeTLS'
+-- close the underlying TLS connection; to do that, call 'close'
 --
 -- this operation will throw 'TLS.TLSException' on failure.
 --
@@ -77,7 +84,7 @@ connect prms subname host port = do
     let subname' = maybe host id subname
         prms' = prms { TLS.clientServerIdentification = (subname', BC.pack (show port)) }
     sock <- TCP.connectSocket host port
-    E.bracketOnError (TLS.contextNew sock prms') closeTLS $ \ ctx -> do
+    E.bracketOnError (TLS.contextNew sock prms') close $ \ ctx -> do
         TLS.handshake ctx
         (is, os) <- tlsToStreams ctx
         return (is, os, ctx)
@@ -101,7 +108,7 @@ withConnection prms subname host port action =
     go (is, os, ctx) = action is os ctx
 
     cleanup (_, os, ctx) = E.mask_ $
-        eatException $! Stream.write Nothing os >> closeTLS ctx
+        eatException $! Stream.write Nothing os >> close ctx
 
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
@@ -116,7 +123,7 @@ accept :: ServerParams              -- ^ check "Data.TLSSetting".
        -> IO (InputStream ByteString, OutputStream ByteString, Context, N.SockAddr)
 accept prms sock = do
     (sock', sockAddr) <- N.accept sock
-    E.bracketOnError (TLS.contextNew sock' prms) closeTLS $ \ ctx -> do
+    E.bracketOnError (TLS.contextNew sock' prms) close $ \ ctx -> do
         TLS.handshake ctx
         (is, os) <- tlsToStreams ctx
         return (is, os, ctx, sockAddr)

@@ -28,15 +28,15 @@ Example
 ```haskell
 import qualified System.IO.Streams         as Stream
 import qualified System.IO.Streams.TCP     as TCP
+import qualified Data.TLSSetting           as TLS
 import qualified System.IO.Streams.TLS     as TLS
-import qualified NetWork.Socket            as Socket
 
 --  TCP Client
 ...
 (is, os, sock) <- TCP.connect "127.0.0.1" 8888
 Stream.write os =<< ..  -- sending
 Stream.read is >>=  ..  -- receiving
-Socket.close sock   ..  -- closing
+TCP.close sock   ..  -- closing
 ...
 
 
@@ -55,7 +55,7 @@ cp <- TLS.makeTLSClientParams (TLS.CustomCAStore "myCA.pem")
 (is, os, ctx) <- TCP.connect cp (Just "myCAName") "127.0.0.1" 8888
 Stream.write os =<< ..  -- sending
 Stream.read is >>=  ..  -- receiving
-TLS.closeTLS ctx    ..  -- closing
+TLS.close ctx    ..  -- closing
 ...
 
 

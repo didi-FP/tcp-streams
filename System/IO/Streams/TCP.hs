@@ -13,9 +13,15 @@
 -- environment(broken wire for example).
 --
 -- `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
-
-module System.IO.Streams.TCP (
-    -- * tcp client
+--
+-- This module is intended to be imported @qualified@, e.g.:
+--
+-- @
+-- import qualified "System.IO.Streams.TCP" as TCP
+-- @
+--
+module System.IO.Streams.TCP
+  ( -- * tcp client
     connectSocket
   , connect
   , connectWithBufferSize

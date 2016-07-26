@@ -9,6 +9,13 @@
 -- The same exceptions rule which applied to TCP apply here, with addtional
 -- 'SSL.SomeSSLException` to be watched out.
 --
+-- This module is intended to be imported @qualified@, e.g.:
+--
+-- @
+-- import qualified "Data.SSLSetting"           as SSL
+-- import qualified "System.IO.Streams.OpenSSL" as SSL
+-- @
+--
 -- Be sure to use 'withOpenSSL' wrap your operation before using any functions here.
 -- otherwise a segmentation fault will happen.
 --
@@ -21,7 +28,7 @@ module System.IO.Streams.OpenSSL
     -- * helpers
   , withOpenSSL
   , sslToStreams
-  , closeSSL
+  , close
   ) where
 
 import qualified Control.Exception     as E
@@ -61,8 +68,8 @@ sslToStreams ssl = do
     output (Just s) = SSL.write ssl s
 {-# INLINABLE sslToStreams #-}
 
-closeSSL :: SSL.SSL -> IO ()
-closeSSL ssl = do
+close :: SSL.SSL -> IO ()
+close ssl = do
     SSL.shutdown ssl SSL.Unidirectional
     maybe (return ()) N.close (SSL.sslSocket ssl)
 
@@ -82,7 +89,7 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
         -> IO (InputStream ByteString, OutputStream ByteString, SSL)
 connect ctx subname host port = do
     sock <- TCP.connectSocket host port
-    E.bracketOnError (SSL.connection ctx sock) closeSSL $ \ ssl -> do
+    E.bracketOnError (SSL.connection ctx sock) close $ \ ssl -> do
         SSL.connect ssl
         trusted <- SSL.getVerifyResult ssl
         cert <- SSL.getPeerCertificate ssl
@@ -128,7 +135,7 @@ withConnection ctx subname host port action =
     go (is, os, ssl) = action is os ssl
 
     cleanup (_, os, ssl) = E.mask_ $
-        eatException $! Streams.write Nothing os >> closeSSL ssl
+        eatException $! Streams.write Nothing os >> close ssl
 
     eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
 
@@ -143,7 +150,7 @@ accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting".
        -> IO (InputStream ByteString, OutputStream ByteString, SSL.SSL, N.SockAddr)
 accept ctx sock = do
     (sock', sockAddr) <- N.accept sock
-    E.bracketOnError (SSL.connection ctx sock') closeSSL $ \ ssl -> do
+    E.bracketOnError (SSL.connection ctx sock') close $ \ ssl -> do
         SSL.accept ssl
         trusted <- SSL.getVerifyResult ssl
         unless trusted (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
