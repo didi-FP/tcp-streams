@@ -15,6 +15,7 @@ module Data.OpenSSLSetting
 
 import qualified OpenSSL.X509.SystemStore as X509
 import qualified OpenSSL.Session          as SSL
+import           OpenSSL                    (withOpenSSL)
 import           Paths_tcp_streams          (getDataFileName)
 import           Data.TLSSetting            (TrustedCAStore(..))
 
@@ -32,7 +33,7 @@ makeCAStore (CustomCAStore fp) ctx = SSL.contextSetCAFile ctx fp
 --
 makeClientSSLContext :: TrustedCAStore          -- ^ trusted certificates.
                      -> IO SSL.SSLContext
-makeClientSSLContext tca = do
+makeClientSSLContext tca = withOpenSSL $ do
     let caStore = makeCAStore tca
     ctx <- SSL.context
     caStore ctx
@@ -53,7 +54,7 @@ makeClientSSLContext' :: FilePath       -- ^ public certificate (X.509 format).
                       -> FilePath       -- ^ private key associated.
                       -> TrustedCAStore -- ^ server will use these certificates to validate clients.
                       -> IO SSL.SSLContext
-makeClientSSLContext' pub certs priv tca = do
+makeClientSSLContext' pub certs priv tca = withOpenSSL $ do
     let caStore = makeCAStore tca
     ctx <- SSL.context
     caStore ctx
@@ -70,7 +71,7 @@ makeServerSSLContext :: FilePath       -- ^ public certificate (X.509 format).
                      -> [FilePath]     -- ^ chain certificate (X.509 format).
                      -> FilePath       -- ^ private key associated.
                      -> IO SSL.SSLContext
-makeServerSSLContext pub certs priv = do
+makeServerSSLContext pub certs priv = withOpenSSL $ do
     ctx <- SSL.context
     SSL.contextSetDefaultCiphers ctx
     SSL.contextSetCertificateFile ctx pub

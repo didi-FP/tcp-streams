@@ -16,9 +16,6 @@
 -- import qualified "System.IO.Streams.OpenSSL" as SSL
 -- @
 --
--- Be sure to use 'withOpenSSL' wrap your operation before using any functions here.
--- otherwise a segmentation fault will happen.
---
 module System.IO.Streams.OpenSSL
   ( -- * client
     connect
@@ -26,7 +23,6 @@ module System.IO.Streams.OpenSSL
     -- * server
   , accept
     -- * helpers
-  , withOpenSSL
   , sslToStreams
   , close
   ) where
@@ -69,7 +65,7 @@ sslToStreams ssl = do
 {-# INLINABLE sslToStreams #-}
 
 close :: SSL.SSL -> IO ()
-close ssl = do
+close ssl = withOpenSSL $ do
     SSL.shutdown ssl SSL.Unidirectional
     maybe (return ()) N.close (SSL.sslSocket ssl)
 
@@ -87,7 +83,7 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
         -> HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, SSL)
-connect ctx subname host port = do
+connect ctx subname host port = withOpenSSL $ do
     sock <- TCP.connectSocket host port
     E.bracketOnError (SSL.connection ctx sock) close $ \ ssl -> do
         SSL.connect ssl
@@ -148,7 +144,7 @@ withConnection ctx subname host port action =
 accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting".
        -> Socket                    -- ^ the listening 'Socket'.
        -> IO (InputStream ByteString, OutputStream ByteString, SSL.SSL, N.SockAddr)
-accept ctx sock = do
+accept ctx sock = withOpenSSL $ do
     (sock', sockAddr) <- N.accept sock
     E.bracketOnError (SSL.connection ctx sock') close $ \ ssl -> do
         SSL.accept ssl

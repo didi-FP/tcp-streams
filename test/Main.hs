@@ -123,7 +123,7 @@ sslTests = [ testSSLSocket, testHTTPS' ]
 
 testSSLSocket :: Test
 testSSLSocket = testCase "network/socket" $
-    N.withSocketsDo . SSL.withOpenSSL $ do
+    N.withSocketsDo $ do
     x <- timeout (10 * 10^(6::Int)) go
     assertEqual "ok" (Just ()) x
 
@@ -154,7 +154,7 @@ testSSLSocket = testCase "network/socket" $
 
 testHTTPS' :: Test
 testHTTPS' = testCase "network/https" $
-    N.withSocketsDo . SSL.withOpenSSL $ do
+    N.withSocketsDo $ do
     x <- timeout (10 * 10^(6::Int)) go
     assertEqual "ok" (Just 1024) x
   where
