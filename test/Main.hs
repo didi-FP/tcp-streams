@@ -55,7 +55,7 @@ testRawSocket = testCase "network/socket" $
         Stream.fromList ["", "ok"] >>= Stream.connectTo os
         N.shutdown sock N.ShutdownSend
         Stream.toList is >>= putMVar resultMVar
-        N.sClose sock
+        N.close sock
 
     server mvar = do
         sock <- Raw.bindAndListen 8888 1024
