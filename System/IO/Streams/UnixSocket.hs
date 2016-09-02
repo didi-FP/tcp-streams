@@ -99,6 +99,9 @@ withConnection usock action =
 
 -- | Bind and listen on a unix-socket with a limit on connection count.
 --
+-- After successful 'bind', a unix-socket file will be created,
+-- you may need to manually remove it.
+--
 bindAndListen :: String -> Int -> IO Socket
 bindAndListen usock maxc =
     E.bracketOnError (N.socket N.AF_UNIX N.Stream 0)
