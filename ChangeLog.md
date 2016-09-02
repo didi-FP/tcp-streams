@@ -1,5 +1,9 @@
 # Revision history for tcp-simple
 
+## 0.5.0.0
+
+* add `System.IO.Streams.UnixSocket` module for unix-socket support.
+
 ## 0.4.0.0
 
 * auto add `withOpenSSL`.

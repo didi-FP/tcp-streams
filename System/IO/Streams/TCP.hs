@@ -147,7 +147,7 @@ bindAndListen port maxc = do
                                         N.setSocketOption sock N.ReuseAddr 1
                                         N.setSocketOption sock N.NoDelay 1)
                                     (\ (E.SomeException _) -> return ())
-                                  N.bind sock (N.SockAddrInet port N.iNADDR_ANY)   -- listen on TCP port 4242.
+                                  N.bind sock (N.SockAddrInet port N.iNADDR_ANY)
                                   N.listen sock maxc
                                   return sock
                      )

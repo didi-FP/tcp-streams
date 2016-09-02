@@ -42,7 +42,7 @@ makeCAStore (CustomCAStore fp)  = do
     let Right pems = X509.pemParseBS bs
     case mapM (X509.decodeSignedCertificate . X509.pemContent) pems of
         Right cas -> return (X509.makeCertificateStore cas)
-
+        Left err  -> error err
 
 -- | make a simple tls 'TLS.ClientParams' that will validate server and use tls connection
 -- without providing client's own certificate. suitable for connecting server which don't

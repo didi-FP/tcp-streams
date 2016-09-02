@@ -1,5 +1,5 @@
 name:                tcp-streams
-version:             0.4.0.0
+version:             0.5.0.0
 synopsis:            One stop solution for tcp client and server with tls support.
 description:         One stop solution for tcp client and server with tls support.
 license:             BSD3
@@ -30,7 +30,8 @@ library
   exposed-modules:      Data.TLSSetting
                     ,   System.IO.Streams.TCP
                     ,   System.IO.Streams.TLS
-
+  if !os(windows)
+    exposed-modules:    System.IO.Streams.UnixSocket
   if flag(openssl)
     exposed-modules:    Data.OpenSSLSetting
                     ,   System.IO.Streams.OpenSSL
@@ -81,3 +82,4 @@ test-suite testsuite
                     ,   test-framework             >= 0.6      && <0.9
                     ,   test-framework-hunit       >= 0.2.7    && <0.4
                     ,   test-framework-quickcheck2 >= 0.2.12.1 && <0.4
+                    ,   directory      == 1.*
