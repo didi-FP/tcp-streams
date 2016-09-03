@@ -197,4 +197,3 @@ socketToStreamsWithBufferSize bufsiz sock@(MkSocket _ _ _ _ statusMVar) = do
 
     output Nothing  = return ()
     output (Just s) = unless (B.null s) (NB.sendAll sock s)
-{-# INLINABLE socketToStreamsWithBufferSize #-}
