@@ -2,17 +2,18 @@
 
 ## 0.5.0.0
 
-* add `System.IO.Streams.UnixSocket` module for unix-socket support.
+* Update built-in mozilla CA list(2016/09/14).
+* Export `Data.TLSSetting` from `System.IO.Streams.TLS`, and `Data.OpenSSLSetting` from `System.IO.Streams.OpenSSL`.
 
 ## 0.4.0.0
 
-* auto add `withOpenSSL`.
-* add `extra-libraries` to cabal file.
+* Auto add `withOpenSSL`.
+* Add `extra-libraries` to cabal file.
 
 ## 0.3.0.0
 
 * Add qualified notes, rename `closeTLS/closeSSL` to `close`.
-* fix `Bad pipe` error in tls's `close`
+* Fix `Bad pipe` error in tls's `close`
 
 ## 0.2.3.0
 

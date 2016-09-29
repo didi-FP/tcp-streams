@@ -74,10 +74,3 @@ executable bench
     hs-source-dirs:   .
     main-is:          TCPLoopBack.hs
     ghc-options:      -O2 -threaded -rtsopts
-
-executable bench-unix-socket
-    build-depends:    base, tcp-streams, io-streams, bytestring, network, directory
-    default-language: Haskell2010
-    hs-source-dirs:   .
-    main-is:          UnixSocketLoopBack.hs
-    ghc-options:      -O2 -threaded -rtsopts

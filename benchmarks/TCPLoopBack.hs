@@ -30,13 +30,9 @@ main = N.withSocketsDo $ do
         _ <- takeMVar mvar
         (is, os, sock) <- TCP.connectWithBufferSize "127.0.0.1" 8123 16384
         forkIO $ do
-            print "??"
             Stream.fromList (replicate 1 chunk) >>= Stream.connectTo os
-            print "??"
         echo <- Stream.readExactly (1024 * 1024 * 1024) is
-        -- echo <- Stream.foldM (\ i s -> when (i `mod` 100 == 0) (print i) >> return (i+1)) 0 is
         print (B.length echo)
-        -- print echo
         N.shutdown sock N.ShutdownSend
         putMVar resultMVar ()
         N.close sock

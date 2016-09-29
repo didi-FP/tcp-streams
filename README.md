@@ -10,7 +10,7 @@ One stop solution for tcp client and server with tls support!
 
 + use [tls](http://hackage.haskell.org/package/tls) or [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) for tls connection.
 
-Built-in mozilla CA list date: 2016/04/20. 
+Built-in [mozilla CA list](https://curl.haxx.se/docs/caextract.html) date: 2016/09/14. 
 
 Mac user may need manually passing openssl library path if linker can't find them:
 

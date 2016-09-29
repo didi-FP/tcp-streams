@@ -24,6 +24,8 @@ module System.IO.Streams.TLS
     -- * helpers
   , tlsToStreams
   , close
+    -- * re-export helpers
+  , module Data.TLSSetting
   ) where
 
 import qualified Control.Exception     as E
@@ -32,6 +34,7 @@ import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as B
 import qualified Data.ByteString.Char8 as BC
 import           Data.ByteString.Lazy  (fromStrict)
+import           Data.TLSSetting
 import           Network.Socket        (HostName, PortNumber, Socket)
 import qualified Network.Socket        as N
 import           Network.TLS           (ClientParams, Context, ServerParams)

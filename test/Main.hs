@@ -21,14 +21,12 @@ import qualified System.IO.Streams              as Stream
 import qualified System.IO.Streams.TCP          as Raw
 import qualified System.IO.Streams.TLS          as TLS
 import qualified System.IO.Streams.OpenSSL      as SSL
-import qualified System.IO.Streams.UnixSocket   as UnixSocket
 ------------------------------------------------------------------------------
 
 main :: IO ()
 main = defaultMain tests
   where
     tests = [ testGroup "TCP" rawTests
-            , testGroup "UnixSocket" usTests
             , testGroup "TLS"  tlsTests
             , testGroup "OpenSSL" sslTests
             ]
@@ -65,41 +63,6 @@ testRawSocket = testCase "network/socket" $
         sock <- Raw.bindAndListen 8888 1024
         putMVar mvar ()
         (is, os, csock, _) <- Raw.accept sock
-        os' <- Stream.atEndOfOutput (N.close csock) os
-        os' `Stream.connectTo` is
-
-------------------------------------------------------------------------------
-
-usTests :: [Test]
-usTests = [ testUnixSocket ]
-
-testUnixSocket :: Test
-testUnixSocket = testCase "network/unix-socket" $
-    N.withSocketsDo $ do
-    x <- timeout (10 * 10^(6::Int)) go
-    assertEqual "ok" (Just ()) x
-  where
-    go = do
-        portMVar   <- newEmptyMVar
-        resultMVar <- newEmptyMVar
-        forkIO $ client portMVar resultMVar
-        server portMVar
-        l <- takeMVar resultMVar
-        assertEqual "testSocket" l ["ok"]
-
-    client mvar resultMVar = do
-        _ <- takeMVar mvar
-        (is, os, sock) <- UnixSocket.connect "./test.sock"
-        Stream.fromList ["", "ok"] >>= Stream.connectTo os
-        N.shutdown sock N.ShutdownSend
-        Stream.toList is >>= putMVar resultMVar
-        N.close sock
-
-    server mvar = do
-        E.try (removeFile "./test.sock") :: IO (Either E.IOException ())
-        sock <- UnixSocket.bindAndListen "./test.sock" 1024
-        putMVar mvar ()
-        (is, os, csock, _) <- UnixSocket.accept sock
         os' <- Stream.atEndOfOutput (N.close csock) os
         os' `Stream.connectTo` is
 

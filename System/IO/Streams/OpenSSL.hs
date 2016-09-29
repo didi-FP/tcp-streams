@@ -25,12 +25,15 @@ module System.IO.Streams.OpenSSL
     -- * helpers
   , sslToStreams
   , close
+    -- * re-export helpers
+  , module Data.OpenSSLSetting
   ) where
 
 import qualified Control.Exception     as E
 import           Control.Monad         (unless, void)
 import           Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as S
+import           Data.OpenSSLSetting
 import           Network.Socket        (HostName, PortNumber, Socket)
 import qualified Network.Socket        as N
 import           OpenSSL               (withOpenSSL)

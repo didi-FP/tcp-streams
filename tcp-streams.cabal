@@ -30,8 +30,6 @@ library
   exposed-modules:      Data.TLSSetting
                     ,   System.IO.Streams.TCP
                     ,   System.IO.Streams.TLS
-  if !os(windows)
-    exposed-modules:    System.IO.Streams.UnixSocket
   if flag(openssl)
     exposed-modules:    Data.OpenSSLSetting
                     ,   System.IO.Streams.OpenSSL
