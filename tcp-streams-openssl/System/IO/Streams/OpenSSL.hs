@@ -12,7 +12,6 @@
 -- This module is intended to be imported @qualified@, e.g.:
 --
 -- @
--- import qualified "Data.SSLSetting"           as SSL
 -- import qualified "System.IO.Streams.OpenSSL" as SSL
 -- @
 --

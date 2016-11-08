@@ -11,7 +11,6 @@
 -- This module is intended to be imported @qualified@, e.g.:
 --
 -- @
--- import qualified "Data.TLSSetting"       as TLS
 -- import qualified "System.IO.Streams.TLS" as TLS
 -- @
 --

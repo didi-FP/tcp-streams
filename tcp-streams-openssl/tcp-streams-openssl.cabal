@@ -1,7 +1,7 @@
 name:                tcp-streams-openssl
 version:             0.6.0.0
-synopsis:            One stop solution for tcp client and server with tls support.
-description:         One stop solution for tcp client and server with tls support.
+synopsis:            Tcp streams using openssl for tls support.
+description:         Tcp streams using openssl for tls support.
 license:             BSD3
 license-file:        LICENSE
 author:              winterland1989
