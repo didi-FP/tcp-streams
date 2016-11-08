@@ -19,6 +19,7 @@
 module System.IO.Streams.OpenSSL
   ( -- * client
     connect
+  , connectWithVerifier
   , withConnection
     -- * server
   , accept
@@ -75,7 +76,7 @@ close ssl = withOpenSSL $ do
 -- | Convenience function for initiating an SSL connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
--- this function will try to verify server's identity using a very simple algorithm,
+-- This function will try to verify server's identity using a very simple algorithm,
 -- which may not suit your need:
 --
 -- @
@@ -83,7 +84,7 @@ close ssl = withOpenSSL $ do
 --   matchDomain n1 n2 =
 --       let n1' = reverse (splitDot n1)
 --           n2' = reverse (splitDot n2)
---           cmp src target = src == "*" || src == target
+--           cmp src target = src == "*" || target == "*" || src == target
 --       in and (zipWith cmp n1' n2')
 -- @
 --
@@ -98,7 +99,7 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, SSL)
 connect ctx vhost host port = withOpenSSL $ do
-    connectWith ctx verify host port
+    connectWithVerifier ctx verify host port
   where
     verify trusted cnname = trusted
                           && maybe False (matchDomain verifyHost) cnname
@@ -119,16 +120,16 @@ connect ctx vhost host port = withOpenSSL $ do
 --
 -- @since 0.6.0.0@
 --
-connectWith :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
-                                -- documentation for information on creating
-                                -- this.
-            -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
-                                        -- the result of certificate verification, the
-                                        -- second param is the certificate's subject name.
-            -> HostName             -- ^ hostname to connect to
-            -> PortNumber           -- ^ port number to connect to
-            -> IO (InputStream ByteString, OutputStream ByteString, SSL)
-connectWith ctx f host port = withOpenSSL $ do
+connectWithVerifier :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
+                                        -- documentation for information on creating
+                                        -- this.
+                    -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
+                                                -- the result of certificate verification, the
+                                                -- second param is the certificate's subject name.
+                    -> HostName             -- ^ hostname to connect to
+                    -> PortNumber           -- ^ port number to connect to
+                    -> IO (InputStream ByteString, OutputStream ByteString, SSL)
+connectWithVerifier ctx f host port = withOpenSSL $ do
     sock <- TCP.connectSocket host port
     E.bracketOnError (SSL.connection ctx sock) close $ \ ssl -> do
         SSL.connect ssl
