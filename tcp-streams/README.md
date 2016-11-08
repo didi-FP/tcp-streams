@@ -8,17 +8,11 @@ One stop solution for tcp client and server with tls support!
 
 + use [io-streams](https://hackage.haskell.org/package/io-streams) for auto read buffering and easy streamming process.
 
-+ use [tls](http://hackage.haskell.org/package/tls) or [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) for tls connection.
++ use [tls](http://hackage.haskell.org/package/tls) for tls connection.
 
 Built-in [mozilla CA list](https://curl.haxx.se/docs/caextract.html) date: 2016/11/02. 
 
-Mac user may need manually passing openssl library path if linker can't find them:
-
-```
-cabal install --extra-include-dirs=/usr/local/opt/openssl/include --extra-lib-dirs=/usr/local/opt/openssl/lib tcp-streams
-```
-
-You can disable openssl support with `cabal install -f -openssl`.
+From v0.6 TLS using [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) is split into [tcp-streams-openssl](http://hackage.haskell.org/package/tcp-streams-openssl).
 
 Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0), for serialize/deserialize data. Happy hacking!
 
