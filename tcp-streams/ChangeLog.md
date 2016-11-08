@@ -1,4 +1,9 @@
-# Revision history for tcp-simple
+# Revision history for tcp-streams
+
+## 0.6.0.0
+
+* Update built-in mozilla CA list(2016/11/02).
+* Split openssl part into [tcp-streams-openssl](hackage.haskell.org/package/tcp-streams-openssl)
 
 ## 0.5.0.0
 

@@ -75,8 +75,19 @@ close ssl = withOpenSSL $ do
 -- | Convenience function for initiating an SSL connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
--- this function will try to verify server's identity,
--- a 'SSL.ProtocolError' will be thrown if fail.
+-- this function will try to verify server's identity using a very simple algorithm,
+-- which may not suit your need:
+--
+-- @
+--   matchDomain :: String -> String -> Bool
+--   matchDomain n1 n2 =
+--       let n1' = reverse (splitDot n1)
+--           n2' = reverse (splitDot n2)
+--           cmp src target = src == "*" || src == target
+--       in and (zipWith cmp n1' n2')
+-- @
+--
+-- If the certificate or hostname is not verified, a 'SSL.ProtocolError' will be thrown.
 --
 connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
                                 -- documentation for information on creating
@@ -86,7 +97,38 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
         -> HostName             -- ^ hostname to connect to
         -> PortNumber           -- ^ port number to connect to
         -> IO (InputStream ByteString, OutputStream ByteString, SSL)
-connect ctx subname host port = withOpenSSL $ do
+connect ctx vhost host port = withOpenSSL $ do
+    connectWith ctx verify host port
+  where
+    verify trusted cnname = trusted
+                          && maybe False (matchDomain verifyHost) cnname
+    verifyHost = maybe host id vhost
+    matchDomain :: String -> String -> Bool
+    matchDomain n1 n2 =
+        let n1' = reverse (splitDot n1)
+            n2' = reverse (splitDot n2)
+            cmp src target = src == "*" || target == "*" || src == target
+        in and (zipWith cmp n1' n2')
+    splitDot :: String -> [String]
+    splitDot "" = [""]
+    splitDot x  =
+        let (y, z) = break (== '.') x in
+        y : (if z == "" then [] else splitDot $ drop 1 z)
+
+-- | Connecting with a custom verification callback.
+--
+-- @since 0.6.0.0@
+--
+connectWith :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
+                                -- documentation for information on creating
+                                -- this.
+            -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
+                                        -- the result of certificate verification, the
+                                        -- second param is the certificate's subject name.
+            -> HostName             -- ^ hostname to connect to
+            -> PortNumber           -- ^ port number to connect to
+            -> IO (InputStream ByteString, OutputStream ByteString, SSL)
+connectWith ctx f host port = withOpenSSL $ do
     sock <- TCP.connectSocket host port
     E.bracketOnError (SSL.connection ctx sock) close $ \ ssl -> do
         SSL.connect ssl
@@ -94,25 +136,11 @@ connect ctx subname host port = withOpenSSL $ do
         cert <- SSL.getPeerCertificate ssl
         subnames <- maybe (return []) (`X509.getSubjectName` False) cert
         let cnname = lookup "CN" subnames
-            verified = case subname of
-                Just subname' -> maybe False (== subname') cnname
-                Nothing       -> maybe False (matchDomain host) cnname
-        unless (trusted && verified) (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
+            verified = f trusted cnname
+        unless verified (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
         (is, os) <- sslToStreams ssl
         return (is, os, ssl)
 
-  where
-    matchDomain :: String -> String -> Bool
-    matchDomain n1 n2 =
-        let n1' = reverse (splitDot n1)
-            n2' = reverse (splitDot n2)
-            cmp src target = src == "*" || src == target
-        in and (zipWith cmp n1' n2')
-    splitDot :: String -> [String]
-    splitDot "" = [""]
-    splitDot x  =
-        let (y, z) = break (== '.') x in
-        y : (if z == "" then [] else splitDot $ drop 1 z)
 
 -- | Convenience function for initiating an SSL connection to the given
 -- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are

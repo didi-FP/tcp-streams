@@ -4,13 +4,15 @@
 -- Note, functions in this module will throw error if can't load certificates or CA store.
 --
 module Data.TLSSetting
-    ( -- * choose a CAStore
+    ( -- * Choose a CAStore
       TrustedCAStore(..)
-      -- * make TLS settings
+      -- * Make TLS settings
     , makeClientParams
     , makeClientParams'
     , makeServerParams
     , makeServerParams'
+      -- * Internal
+    , mozillaCAStorePath
     ) where
 
 import qualified Data.ByteString            as B
@@ -34,9 +36,13 @@ data TrustedCAStore
     | CustomCAStore FilePath          -- ^ provided by your self, the CA file can contain multiple certificates.
   deriving (Show, Eq)
 
+-- | Get the built-in mozilla CA's path.
+mozillaCAStorePath :: IO FilePath
+mozillaCAStorePath = getDataFileName "mozillaCAStore.pem"
+
 makeCAStore :: TrustedCAStore -> IO X509.CertificateStore
 makeCAStore SystemCAStore       = X509.getSystemCertificateStore
-makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< getDataFileName "mozillaCAStore.pem"
+makeCAStore MozillaCAStore      = makeCAStore . CustomCAStore =<< mozillaCAStorePath
 makeCAStore (CustomCAStore fp)  = do
     bs <- B.readFile fp
     let Right pems = X509.pemParseBS bs

@@ -16,15 +16,12 @@ module Data.OpenSSLSetting
 import qualified OpenSSL.X509.SystemStore as X509
 import qualified OpenSSL.Session          as SSL
 import           OpenSSL                    (withOpenSSL)
-import           Paths_tcp_streams          (getDataFileName)
-import           Data.TLSSetting            (TrustedCAStore(..))
+import           Data.TLSSetting            (TrustedCAStore(..), mozillaCAStorePath)
 
 
 makeCAStore :: TrustedCAStore -> SSL.SSLContext -> IO ()
 makeCAStore SystemCAStore  ctx  = X509.contextLoadSystemCerts ctx
-makeCAStore MozillaCAStore ctx  = do
-    fp <- getDataFileName "mozillaCAStore.pem"
-    SSL.contextSetCAFile ctx fp
+makeCAStore MozillaCAStore ctx  = SSL.contextSetCAFile ctx =<< mozillaCAStorePath
 makeCAStore (CustomCAStore fp) ctx = SSL.contextSetCAFile ctx fp
 
 -- | make a simple 'SSL.SSLContext' that will validate server and use tls connection
