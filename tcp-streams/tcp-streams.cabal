@@ -26,6 +26,7 @@ source-repository head
 library
   exposed-modules:      Data.TLSSetting
                     ,   System.IO.Streams.TCP
+                    ,   System.IO.Streams.TCP.Timeout
                     ,   System.IO.Streams.TLS
 
   other-modules:    Paths_tcp_streams
