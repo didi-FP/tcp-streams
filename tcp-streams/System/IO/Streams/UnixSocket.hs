@@ -1,45 +1,32 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | This module provides convenience functions for interfacing @io-streams@
--- with unix-socket file. the default receive buffer size is 4096. sending is unbuffered,
--- anything write into 'OutputStream' will be immediately send to underlying socket.
---
--- Reading 'InputStream' will block until GHC IO manager find data is ready,
--- for example 'System.IO.Streams.ByteString.readExactly 1024' will block until 1024 bytes are available.
---
--- When socket is closed, the 'InputStream' will be closed too(further reading will return 'Nothing'),
--- no exception will be thrown. You still should handle 'IOError' when you write to  'OutputStream' for safety,
--- but no exception doesn't essentially mean a successful write, especially under bad network
--- environment(broken wire for example).
+-- | This module provides convenience functions for interfacing unix-socket.
 --
 -- This module is intended to be imported @qualified@, e.g.:
 --
 -- @
+-- import           "Data.Connection"
 -- import qualified "System.IO.Streams.UnixSocket" as UnixSocket
 -- @
 --
 -- @since 0.5.0.0
 --
 module System.IO.Streams.UnixSocket
-  ( -- * connection type
-    Connection(..)
-    -- * tcp client
-  , connect
+  ( -- * client
+    connect
   , connectSocket
-  , TCP.socketToConnection
-  , TCP.defaultChunkSize
-    -- * tcp server
+    -- * server
   , bindAndListen
-  , TCP.accept
+  , accept
   ) where
 
 import qualified Control.Exception         as E
 import           Control.Monad             (void)
-import           Data.Connection
 import           Data.ByteString           (ByteString)
 import qualified Network.Socket            as N
 import           System.IO.Streams         (InputStream, OutputStream)
 import qualified System.IO.Streams         as Stream
+import           Data.Connection
 import qualified System.IO.Streams.TCP     as TCP
 
 
@@ -56,6 +43,8 @@ connectSocket usock =
                      N.close
                      (\sock -> do let addr = N.SockAddrUnix usock
                                   N.connect sock addr
+                                  -- default output buffer of unix socket is too small
+                                  N.setSocketOption sock N.SendBuffer (TCP.defaultChunkSize * 16)
                                   return (sock, addr)
                      )
 
@@ -75,3 +64,10 @@ bindAndListen maxc usock =
                                   N.listen sock maxc
                                   return sock
                      )
+
+-- | Accept a connection with 'defaultChunkSize'
+--
+accept :: N.Socket -> IO Connection
+accept sock = TCP.acceptWith sock $ \ sp@(sock, addr) -> do
+    N.setSocketOption sock N.SendBuffer (TCP.defaultChunkSize * 16)
+    TCP.socketToConnection TCP.defaultChunkSize sp

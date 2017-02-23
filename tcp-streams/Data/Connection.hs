@@ -9,9 +9,11 @@ import qualified System.IO.Streams         as S
 --
 -- 'Connection' s from this package are supposed to have following properties:
 --
---  * 'InputStream' is used to simplified streaming processing.
+--  * 'InputStream' is used to simplified streaming processing. Reading 'InputStream' will block
+--  until GHC IO manager find data is ready, for example:
+--  'System.IO.Streams.ByteString.readExactly 1024' will block until 1024 bytes are available.
 --
---  * 'send' will use <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2
+--  * 'send' use <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2
 --   vector-IO> automatically when there's more than one chunk to save system call.
 --
 --  * You should make sure there's no pending recv/send before you 'close' a 'Connection'.
