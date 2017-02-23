@@ -29,6 +29,9 @@ library
                     ,   System.IO.Streams.TCP
                     ,   System.IO.Streams.TLS
 
+  if !os(windows)
+    exposed-modules:    System.IO.Streams.UnixSocket
+
   other-modules:    Paths_tcp_streams
   -- other-extensions:    
   build-depends:        base           >=4.7  && < 5.0
