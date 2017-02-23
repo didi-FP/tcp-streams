@@ -9,18 +9,18 @@ import qualified System.IO.Streams         as S
 --
 -- 'Connection' s from this package are supposed to have following properties:
 --
---  * 'InputStream' is used to simplified streaming processing. Reading 'InputStream' will block
+--  * 'S.InputStream' is used to simplified streaming processing. Reading 'S.InputStream' will block
 --  until GHC IO manager find data is ready, for example:
---  'System.IO.Streams.ByteString.readExactly 1024' will block until 1024 bytes are available.
+--  @'S.readExactly' 1024@ will block until 1024 bytes are available.
 --
---  * 'send' use <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2
---   vector-IO> automatically when there's more than one chunk to save system call.
+--  * <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2 vector-IO>
+--  is used automatically when there's more than one chunk to send to save system call.
 --
 --  * You should make sure there's no pending recv/send before you 'close' a 'Connection'.
 --  That means either you call 'close' in the same thread you recv/send, or use async exception
 --  to terminate recv/send thread before call 'close' in other thread(such as a reaper thread).
---  Otherwise you may run into <https://mail.haskell.org/pipermail/haskell-cafe/2014-September/115823.html
---  race-connections>.
+--  Otherwise you may run into
+--  <https://mail.haskell.org/pipermail/haskell-cafe/2014-September/115823.html race-connections>.
 --
 --  * Exception or closed by other peer during recv/send will NOT close underline socket,
 --  you should always use 'close' with 'E.bracket' to ensure safety.
@@ -28,8 +28,8 @@ import qualified System.IO.Streams         as S
 --  @since 1.0
 --
 data Connection = Connection
-    { source  :: {-# UNPACK #-} !(S.InputStream B.ByteString)
-    , send    :: L.ByteString -> IO ()
-    , close   :: IO ()
-    , address :: N.SockAddr
+    { source  :: {-# UNPACK #-} !(S.InputStream B.ByteString)   -- ^ a 'S.InputStream' receive data
+    , send    :: L.ByteString -> IO ()                          -- ^ send data with connection
+    , close   :: IO ()                                          -- ^ close connection
+    , address :: N.SockAddr                                     -- ^ remote address
     }
