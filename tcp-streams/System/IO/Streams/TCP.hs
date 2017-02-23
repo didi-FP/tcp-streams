@@ -1,18 +1,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | This module provides convenience functions for interfacing @io-streams@
--- with raw tcp. the default receive buffer size is 4096. sending is unbuffered,
--- anything write into 'OutputStream' will be immediately send to underlying socket.
+-- | This module provides convenience functions for interfacing raw tcp.
 --
 -- Reading 'InputStream' will block until GHC IO manager find data is ready,
 -- for example 'System.IO.Streams.ByteString.readExactly 1024' will block until 1024 bytes are available.
---
--- When socket is closed, the 'InputStream' will be closed too(further reading will return 'Nothing'),
--- no exception will be thrown. You still should handle 'IOError' when you write to  'OutputStream' for safety,
--- but no exception doesn't essentially mean a successful write, especially under bad network
--- environment(broken wire for example).
---
--- `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
 --
 -- This module is intended to be imported @qualified@, e.g.:
 --
@@ -21,64 +12,53 @@
 -- @
 --
 module System.IO.Streams.TCP
-  ( -- * tcp client
-    connectSocket
+  ( -- * connection type
+    Connection(..)
+    -- * tcp client
   , connect
-  , connectWithBufferSize
-  , withConnection
+  , connectSocket
+  , socketToConnection
+  , defaultChunkSize
     -- * tcp server
   , bindAndListen
   , accept
-  , acceptWithBufferSize
-    -- * helpers
-  , socketToStreamsWithBufferSize
-  , N.close
+  , acceptWith
   ) where
 
-import           Control.Concurrent.MVar   (withMVar)
 import qualified Control.Exception         as E
 import           Control.Monad             (unless, void)
-import           Data.ByteString           (ByteString)
+import           Data.Connection
 import qualified Data.ByteString           as B
-import           Network.Socket            (HostName, PortNumber, Socket (..))
+import qualified Data.ByteString.Lazy.Internal as L
 import qualified Network.Socket            as N
 import qualified Network.Socket.ByteString as NB
-import           System.IO.Streams         (InputStream, OutputStream)
-import qualified System.IO.Streams         as Stream
+import qualified Network.Socket.ByteString.Lazy as NL
+import qualified System.IO.Streams         as S
+import           Foreign.Storable   (sizeOf)
 
-bUFSIZ :: Int
-bUFSIZ = 4096
-
--- | Resolve a 'HostName'/'PortNumber' combination.
+-- | The chunk size used for I\/O, less the memory management overhead.
 --
--- This function throws an 'IOError' when resolve fail.
+-- Currently set to 32k.
 --
-resolveAddrInfo :: HostName -> PortNumber -> IO (N.Family, N.SocketType, N.ProtocolNumber, N.SockAddr)
-resolveAddrInfo host port = do
-    -- Partial function here OK, network will throw an exception rather than
-    -- return the empty list here.
-    (addrInfo:_) <- N.getAddrInfo (Just hints) (Just host) (Just $ show port)
-    let family     = N.addrFamily addrInfo
-    let socketType = N.addrSocketType addrInfo
-    let protocol   = N.addrProtocol addrInfo
-    let address    = N.addrAddress addrInfo
-    return (family, socketType, protocol, address)
+defaultChunkSize :: Int
+defaultChunkSize = 32 * k - chunkOverhead
   where
-    hints = N.defaultHints {
-            N.addrFlags      = [N.AI_ADDRCONFIG, N.AI_NUMERICSERV]
-        ,   N.addrSocketType = N.Stream
-        }
-{-# INLINABLE resolveAddrInfo #-}
+    k = 1024
+    chunkOverhead = 2 * sizeOf (undefined :: Int)
+
 
 -- | Convenience function for initiating an raw TCP connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
--- Note that sending an end-of-file to the returned 'OutputStream' will not
--- close the underlying Socket connection.
+-- It use 'N.getAddrInfo' to resolve host/service name
+-- with 'N.AI_ADDRCONFIG', 'N.AI_NUMERICSERV' hint set, so it should be able to
+-- resolve both numeric IPv4/IPv6 hostname and domain name.
 --
-connectSocket :: HostName             -- ^ hostname to connect to
-              -> PortNumber           -- ^ port number to connect to
-              -> IO Socket
+-- `TCP_NODELAY` are enabled by default. you can use 'N.setSocketOption' to adjust.
+--
+connectSocket :: N.HostName             -- ^ hostname to connect to
+              -> N.PortNumber           -- ^ port number to connect to
+              -> IO (N.Socket, N.SockAddr)
 connectSocket host port = do
     (family, socketType, protocol, address) <- resolveAddrInfo host port
     E.bracketOnError (N.socket family socketType protocol)
@@ -88,56 +68,54 @@ connectSocket host port = do
                                   E.catch
                                     (N.setSocketOption sock N.NoDelay 1)
                                     (\ (E.SomeException _) -> return ())
-                                  return sock
+                                  return (sock, address)
                      )
-
-
--- | Connect to remote tcp server.
---
--- You may need to use 'E.bracket' pattern to enusre 'N.Socket' 's safety.
---
-connect :: HostName             -- ^ hostname to connect to
-        -> PortNumber           -- ^ port number to connect to
-        -> IO (InputStream ByteString, OutputStream ByteString, Socket)
-connect host port = connectWithBufferSize host port bUFSIZ
-
--- | Connect to remote tcp server with adjustable receive buffer size.
---
-connectWithBufferSize :: HostName             -- ^ hostname to connect to
-                      -> PortNumber           -- ^ port number to connect to
-                      -> Int                  -- ^ tcp read buffer size
-                      -> IO (InputStream ByteString, OutputStream ByteString, Socket)
-connectWithBufferSize host port bufsiz = do
-    sock <- connectSocket host port
-    (is, os) <- socketToStreamsWithBufferSize bufsiz sock
-    return (is, os, sock)
-
-
-
--- | Convenience function for initiating an TCP connection to the given
--- @('HostName', 'PortNumber')@ combination. The socket will be
--- closed and deleted after the user handler runs.
---
-withConnection :: HostName             -- ^ hostname to connect to
-               -> PortNumber           -- ^ port number to connect to
-               -> ( InputStream ByteString
-                    -> OutputStream ByteString -> Socket -> IO a) -- ^ Action to run with the new connection
-               -> IO a
-withConnection host port action =
-    E.bracket (connect host port) cleanup go
-
   where
-    go (is, os, sock) = action is os sock
+    resolveAddrInfo host port = do
+        -- Partial function here OK, network will throw an exception rather than
+        -- return the empty list here.
+        (addrInfo:_) <- N.getAddrInfo (Just hints) (Just host) (Just $ show port)
+        let family     = N.addrFamily addrInfo
+        let socketType = N.addrSocketType addrInfo
+        let protocol   = N.addrProtocol addrInfo
+        let address    = N.addrAddress addrInfo
+        return (family, socketType, protocol, address)
+      where
+        hints = N.defaultHints {
+                N.addrFlags      = [N.AI_ADDRCONFIG, N.AI_NUMERICSERV]
+            ,   N.addrSocketType = N.Stream
+            }
+    {-# INLINABLE resolveAddrInfo #-}
 
-    cleanup (_, os, sock) = E.mask_ $
-        eatException $! Stream.write Nothing os >> N.close sock
+-- | Make a 'Connection' from a 'Socket' with given buffer size.
+--
+socketToConnection
+    :: Int                      -- ^ receive buffer size
+    -> (N.Socket, N.SockAddr)       -- ^ socket address pair
+    -> IO Connection
+socketToConnection bufsiz (sock, addr) = do
+    is <- S.makeInputStream $ do
+        s <- NB.recv sock bufsiz
+        return $! if B.null s then Nothing else Just s
+    return (Connection is (send sock) (N.close sock) addr)
+  where
+    send sock (L.Empty) = return ()
+    send sock (L.Chunk bs L.Empty) = unless (B.null bs) (NB.sendAll sock bs)
+    send sock lbs = NL.sendAll sock lbs
 
-    eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
+-- | Connect to server using 'defaultChunkSize'.
+--
+connect :: N.HostName             -- ^ hostname to connect to
+        -> N.PortNumber           -- ^ port number to connect to
+        -> IO Connection
+connect host port = connectSocket host port >>= socketToConnection defaultChunkSize
 
 -- | Bind and listen on port with a limit on connection count.
 --
-bindAndListen :: PortNumber -> Int -> IO Socket
-bindAndListen port maxc = do
+bindAndListen :: Int         -- connection limit
+              -> N.PortNumber
+              -> IO N.Socket
+bindAndListen maxc port = do
     E.bracketOnError (N.socket N.AF_INET N.Stream 0)
                      N.close
                      (\sock -> do
@@ -152,48 +130,14 @@ bindAndListen port maxc = do
                                   return sock
                      )
 
--- | Accept a new connection from remote client, return a 'InputStream' / 'OutputStream' pair,
--- a new underlying 'Socket', and remote 'N.SockAddr',you should call 'bindAndListen' first.
+-- | Accept a connection with 'defaultChunkSize'
 --
--- This function will block if there's no connection comming.
+accept :: N.Socket -> IO Connection
+accept sock = acceptWith sock (socketToConnection defaultChunkSize)
+
+-- | Accept a connection with user customization.
 --
-accept :: Socket -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
-accept sock = acceptWithBufferSize sock bUFSIZ
-
-
--- | accept a connection with adjustable receive buffer size.
---
-acceptWithBufferSize :: Socket -> Int -> IO (InputStream ByteString, OutputStream ByteString, N.Socket, N.SockAddr)
-acceptWithBufferSize sock bufsiz = do
-    (sock', sockAddr) <- N.accept sock
-    (is, os) <- socketToStreamsWithBufferSize bufsiz sock'
-    return (is, os, sock', sockAddr)
-
-
--- | Convert a 'Socket' into a streams pair, catch 'IOException's on receiving and close 'InputStream'.
--- You still should handle 'IOError' when you write to  'OutputStream' for safety,
--- but no exception doesn't essentially mean a successful write, especially under bad network
--- environment(broken wire for example).
---
--- During receiving, the status 'Control.Concurrent.MVar.MVar' is locked, so that a cleanup thread
--- can't affect receiving until finish.
---
-socketToStreamsWithBufferSize
-    :: Int                      -- ^ how large the receive buffer should be
-    -> Socket                   -- ^ network socket
-    -> IO (InputStream ByteString, OutputStream ByteString)
-socketToStreamsWithBufferSize bufsiz sock@(MkSocket _ _ _ _ statusMVar) = do
-    is <- Stream.makeInputStream input
-    os <- Stream.makeOutputStream output
-    return (is, os)
-  where
-    input = withMVar statusMVar $ \ status ->
-        case status of
-            N.Connected -> ( do
-                s <- NB.recv sock bufsiz
-                return $! if B.null s then Nothing else Just s
-                ) `E.catch` (\(_::E.IOException) -> return Nothing)
-            _ -> return Nothing
-
-    output Nothing  = return ()
-    output (Just s) = unless (B.null s) (NB.sendAll sock s)
+acceptWith :: N.Socket
+           -> ((N.Socket, N.SockAddr) -> IO Connection)
+           -> IO Connection
+acceptWith sock f = f =<< N.accept sock

@@ -13,28 +13,30 @@ import           Test.Framework
 import           Test.Framework.Providers.HUnit
 import           Test.HUnit                     hiding (Test)
 import qualified Data.ByteString                as B
+import qualified Data.ByteString.Lazy           as L
 import           System.Directory               (removeFile)
 ------------------------------------------------------------------------------
 import qualified Data.TLSSetting                as TLS
+import           Data.Connection
 import qualified System.IO.Streams              as Stream
-import qualified System.IO.Streams.TCP          as Raw
+import qualified System.IO.Streams.TCP          as TCP
 import qualified System.IO.Streams.TLS          as TLS
 ------------------------------------------------------------------------------
 
 main :: IO ()
 main = defaultMain tests
   where
-    tests = [ testGroup "TCP" rawTests
+    tests = [ testGroup "TCP" tcpTests
             , testGroup "TLS"  tlsTests
             ]
 
 ------------------------------------------------------------------------------
 
-rawTests :: [Test]
-rawTests = [ testRawSocket ]
+tcpTests :: [Test]
+tcpTests = [ testTCPSocket ]
 
-testRawSocket :: Test
-testRawSocket = testCase "network/socket" $
+testTCPSocket :: Test
+testTCPSocket = testCase "network/socket" $
     N.withSocketsDo $ do
     x <- timeout (10 * 10^(6::Int)) go
     assertEqual "ok" (Just ()) x
@@ -50,18 +52,18 @@ testRawSocket = testCase "network/socket" $
 
     client mvar resultMVar = do
         _ <- takeMVar mvar
-        (is, os, sock) <- Raw.connect "127.0.0.1" 8888
-        Stream.fromList ["", "ok"] >>= Stream.connectTo os
-        N.shutdown sock N.ShutdownSend
-        Stream.toList is >>= putMVar resultMVar
-        N.close sock
+        conn <- TCP.connect "127.0.0.1" 8888
+        send conn "ok"
+        Stream.toList (source conn) >>= putMVar resultMVar
+        close conn
 
     server mvar = do
-        sock <- Raw.bindAndListen 8888 1024
+        sock <- TCP.bindAndListen 1024 8888
         putMVar mvar ()
-        (is, os, csock, _) <- Raw.accept sock
-        os' <- Stream.atEndOfOutput (N.close csock) os
-        os' `Stream.connectTo` is
+        conn <- TCP.accept sock
+        req <- Stream.readExactly 2 (source conn)
+        send conn (L.fromStrict req)
+        close conn
 
 ------------------------------------------------------------------------------
 
@@ -81,23 +83,24 @@ testTLSSocket = testCase "network/socket" $
         forkIO $ client portMVar resultMVar
         server portMVar
         l <- takeMVar resultMVar
-        assertEqual "testSocket" l (Just "ok")
+        assertEqual "testSocket" l ["ok"]
 
     client mvar resultMVar = do
         _ <- takeMVar mvar
         cp <- TLS.makeClientParams (TLS.CustomCAStore "./test/cert/ca.pem")
-        (is, os, ctx) <- TLS.connect cp (Just "Winter") "127.0.0.1" 8889
-        Stream.fromList ["", "ok"] >>= Stream.connectTo os
-        Stream.read is >>= putMVar resultMVar  -- There's no shutdown in tls, so we won't get a 'Nothing'
-        TLS.close ctx
+        conn <- TLS.connect cp (Just "Winter") "127.0.0.1" 8889
+        send conn "ok"
+        Stream.toList (source conn) >>= putMVar resultMVar
+        close conn
 
     server mvar = do
         sp <- TLS.makeServerParams "./test/cert/server.crt" [] "./test/cert/server.key"
-        sock <- Raw.bindAndListen 8889 1024
+        sock <- TCP.bindAndListen 1024 8889
         putMVar mvar ()
-        (is, os, tls, _) <- TLS.accept sp sock
-        os' <- Stream.atEndOfOutput (TLS.close tls) os
-        os' `Stream.connectTo` is
+        conn <- TLS.accept sp sock
+        req <- Stream.readExactly 2 (source conn)
+        send conn (L.fromStrict req)
+        close conn
 
 testHTTPS :: Test
 testHTTPS = testCase "network/https" $
@@ -107,10 +110,10 @@ testHTTPS = testCase "network/https" $
   where
     go = do
         cp <- TLS.makeClientParams TLS.MozillaCAStore
-        (is, os, ctx) <- TLS.connect cp Nothing "www.google.com" 443
-        Stream.write (Just "GET / HTTP/1.1\r\n") os
-        Stream.write (Just "Host: www.google.com\r\n") os
-        Stream.write (Just "\r\n") os
-        bs <- Stream.readExactly 1024 is
-        TLS.close ctx
+        conn <- TLS.connect cp Nothing "www.bing.com" 443
+        send conn ("GET / HTTP/1.1\r\n")
+        send conn ("Host: www.bing.com\r\n")
+        send conn ("\r\n")
+        bs <- Stream.readExactly 1024 (source conn)
+        close conn
         return (B.length bs)

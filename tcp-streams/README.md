@@ -14,7 +14,7 @@ Built-in [mozilla CA list](https://curl.haxx.se/docs/caextract.html) date: 2016/
 
 From v0.6 TLS using [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) is split into [tcp-streams-openssl](http://hackage.haskell.org/package/tcp-streams-openssl) due to the difficulties of setting up openssl on many platform.
 
-Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams-0.0.2.0), for serialize/deserialize data. Happy hacking!
+Also take a look at [wire-stream](http://hackage.haskell.org/package/wire-streams), for serialize/deserialize data. Happy hacking!
 
 Example
 -------
