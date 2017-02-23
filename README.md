@@ -4,15 +4,13 @@ tcp-streams
 [![Hackage](https://img.shields.io/hackage/v/tcp-streams.svg?style=flat)](http://hackage.haskell.org/package/tcp-streams)
 [![Build Status](https://travis-ci.org/winterland1989/tcp-streams.svg)](https://travis-ci.org/winterland1989/tcp-streams)
 
-This is the repo for [tcp-streams](http://hackage.haskell.org/package/tcp-streams) and [tcp-streams-openssl](http://hackage.haskell.org/package/tcp-streams-openssl).
-
-We try to provide an one stop solution for tcp client and server with tls support, features:
+One stop solution for tcp client and server with tls support!
 
 + use [io-streams](https://hackage.haskell.org/package/io-streams) for auto read buffering and easy streamming process.
 
 + use [tls](http://hackage.haskell.org/package/tls) for tls connection.
 
-Built-in [mozilla CA list](https://curl.haxx.se/docs/caextract.html) date: 2016/11/02. 
+Built-in [mozilla CA list](https://curl.haxx.se/docs/caextract.html) date: 2017/01/18. 
 
 From v0.6 TLS using [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL) is split into [tcp-streams-openssl](http://hackage.haskell.org/package/tcp-streams-openssl) due to the difficulties of setting up openssl on many platform.
 
@@ -22,57 +20,52 @@ Example
 -------
 
 ```haskell
-import qualified System.IO.Streams         as Stream
+import           Data.Connection
 import qualified System.IO.Streams.TCP     as TCP
 import qualified Data.TLSSetting           as TLS
 import qualified System.IO.Streams.TLS     as TLS
 
 --  TCP Client
 ...
-(is, os, sock) <- TCP.connect "127.0.0.1" 8888
-Stream.write os =<< ..  -- sending
-Stream.read is >>=  ..  -- receiving
-TCP.close sock   ..  -- closing
+conn <- TCP.connect "127.0.0.1" 8888
+send conn "Hello! World." ..  -- sending
+res <- Stream.read (source conn) ..  -- receiving
+close conn                ..  -- closing
 ...
 
 
 -- TCP Server
 ...
-sock <- TCP.bindAndListen 8888 1024
-(is, os, csock, _) <- TCP.accept sock
-Stream.write os =<< ..  -- sending
-Stream.read is >>= ..   -- receiving
+sock <- TCP.bindAndListen 1024 8888
+conn <- TCP.accept sock
+req <- Stream.read (source conn) ..   -- receiving
+send conn "GoodBye!" ..  -- sending
 ...
 
 
 --  TLS Client
 ...
 cp <- TLS.makeTLSClientParams (TLS.CustomCAStore "myCA.pem")
-(is, os, ctx) <- TCP.connect cp (Just "myCAName") "127.0.0.1" 8888
-Stream.write os =<< ..  -- sending
-Stream.read is >>=  ..  -- receiving
-TLS.close ctx    ..  -- closing
+conn <- TLS.connect cp (Just "myCAName") "127.0.0.1" 8888
 ...
 
 
 --  TLS Server
 ...
 sp <- TLS.makeServerParams "server.crt" [] "server.key"
-sock <- TCP.bindAndListen 8889 1024
-(is, os, ctx, sockAddr) <- TLS.accept sp sock
-Stream.write os =<< ..  -- sending
-Stream.read is >>= ..   -- receiving
+sock <- TCP.bindAndListen 1024 8889
+conn <- TLS.accept sp sock
 ...
 
 
 -- HTTPS Client
 ...
 cp <- TLS.makeClientParams TLS.MozillaCAStore
-(is, os, ctx) <- TLS.connect cp Nothing "www.google.com" 443
-Stream.write (Just "GET / HTTP/1.1\r\n") os
-Stream.write (Just "Host: www.google.com\r\n") os
-Stream.write (Just "\r\n") os
-bs <- Stream.readExactly 1024 is
+conn <- TLS.connect cp Nothing "www.google.com" 443
+send conn "GET / HTTP/1.1\r\n"
+send conn "Host: www.google.com\r\n"
+send conn "\r\n"
+bs <- Stream.readExactly 1024 (source conn)
 ...
 ```
 
