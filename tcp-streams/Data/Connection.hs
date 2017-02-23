@@ -26,7 +26,7 @@ import qualified System.IO.Streams         as S
 --  @since 1.0
 --
 data Connection = Connection
-    { source  :: S.InputStream B.ByteString
+    { source  :: {-# UNPACK #-} !(S.InputStream B.ByteString)
     , send    :: L.ByteString -> IO ()
     , close   :: IO ()
     , address :: N.SockAddr

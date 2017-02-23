@@ -50,6 +50,8 @@ defaultChunkSize = 32 * k - chunkOverhead
 -- | Convenience function for initiating an raw TCP connection to the given
 -- @('HostName', 'PortNumber')@ combination.
 --
+-- Please use 'E.bracket' or its friends to enusre safety.
+--
 -- It use 'N.getAddrInfo' to resolve host/service name
 -- with 'N.AI_ADDRCONFIG', 'N.AI_NUMERICSERV' hint set, so it should be able to
 -- resolve both numeric IPv4/IPv6 hostname and domain name.
@@ -105,6 +107,8 @@ socketToConnection bufsiz (sock, addr) = do
 
 -- | Connect to server using 'defaultChunkSize'.
 --
+-- Please use 'E.bracket' or its friends to enusre safety.
+--
 connect :: N.HostName             -- ^ hostname to connect to
         -> N.PortNumber           -- ^ port number to connect to
         -> IO Connection
@@ -131,6 +135,8 @@ bindAndListen maxc port = do
                      )
 
 -- | Accept a connection with 'defaultChunkSize'
+--
+-- Please use 'E.bracket' or its friends to enusre safety.
 --
 accept :: N.Socket -> IO Connection
 accept sock = acceptWith sock (socketToConnection defaultChunkSize)
