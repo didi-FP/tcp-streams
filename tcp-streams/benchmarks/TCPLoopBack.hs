@@ -4,7 +4,7 @@ module Main (main) where
 
 ------------------------------------------------------------------------------
 import           Control.Monad
-import           Control.Concurrent             (forkIO, newEmptyMVar, putMVar,
+import           Control.Concurrent             (forkIO, newEmptyMVar, putMVar,threadDelay,
                                                  takeMVar)
 import qualified Control.Exception              as E
 import qualified Network.Socket                 as N
@@ -27,13 +27,12 @@ main = N.withSocketsDo $ do
     client portMVar resultMVar
     takeMVar resultMVar
   where
-    chunk = replicate 1024 $ B.replicate (1024) 64
+    chunk = replicate 1024 $ B.replicate (1024 * 1024) 64
     client mvar resultMVar = do
         _ <- takeMVar mvar
-        sp <- TCP.connectSocket "127.0.0.1" 8123
-        conn <- TCP.socketToConnection TCP.defaultChunkSize sp
-        forkIO $ send conn (L.fromChunks chunk)
-        echo <- Stream.readExactly (1024 * 1024) (source conn)
+        conn <- TCP.connect "127.0.0.1" 8123
+        send conn (L.fromChunks chunk)
+        echo <- Stream.readExactly (1024 * 1024 * 1024) (source conn)
         print (B.length echo)
         putMVar resultMVar ()
         close conn
@@ -42,5 +41,10 @@ main = N.withSocketsDo $ do
         sock <- TCP.bindAndListen 1024 8123
         putMVar mvar ()
         conn <- TCP.accept sock
-        req <- Stream.readExactly (1024 * 1024) (source conn)
-        send conn (L.fromStrict req)
+        echo <- Stream.readExactly (1024 * 1024 * 1024) (source conn)
+        send conn (L.fromStrict echo)
+
+    sendAll sock bs = do
+        sent <- NB.send sock bs
+        when (sent < B.length bs) $ sendAll sock (B.drop sent bs)
+

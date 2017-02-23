@@ -47,7 +47,6 @@ library
                     ,   x509-system    >= 1.5 && < 2.0
                     ,   x509-store     >= 1.5 && < 2.0
                     ,   pem           
-                    ,   unix-bytestring
 
   ghc-options:    -Wall
   -- hs-source-dirs:      

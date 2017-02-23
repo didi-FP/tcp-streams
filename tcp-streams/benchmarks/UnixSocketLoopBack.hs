@@ -13,10 +13,8 @@ import qualified Data.ByteString                as B
 import qualified Data.ByteString.Lazy           as L
 import           System.Directory               (removeFile)
 ------------------------------------------------------------------------------
-import qualified Data.TLSSetting                as TLS
 import qualified System.IO.Streams              as Stream
 import qualified System.IO.Streams.UnixSocket   as UnixSocket
-import qualified System.IO.Streams.TLS          as TLS
 
 main :: IO ()
 main = N.withSocketsDo $ do
@@ -26,14 +24,13 @@ main = N.withSocketsDo $ do
     client portMVar resultMVar
     takeMVar resultMVar
   where
-    chunk = replicate 1024 $ B.replicate (1024) 64
+    chunk = replicate 1024 $ B.replicate (1024 * 1024) 64
     client mvar resultMVar = do
         _ <- takeMVar mvar
         conn <- UnixSocket.connect "./test.sock"
-        forkIO $ do
-            send conn (L.fromChunks chunk)
+        send conn (L.fromChunks chunk)
         -- echo <- Stream.foldM (\ i s -> when (i `mod` 100 == 0) (print i) >> return (i+1)) 0 is
-        echo <- Stream.readExactly (1024 * 1024) (source conn)
+        echo <- Stream.readExactly (1024 * 1024 * 1024) (source conn)
         print (B.length echo)
         -- print echo
         putMVar resultMVar ()
@@ -44,5 +41,5 @@ main = N.withSocketsDo $ do
         sock <- UnixSocket.bindAndListen 1024 "./test.sock"
         putMVar mvar ()
         conn <- UnixSocket.accept sock
-        req <- Stream.readExactly (1024 * 1024) (source conn)
+        req <- Stream.readExactly (1024 * 1024 * 1024) (source conn)
         send conn (L.fromStrict req)
