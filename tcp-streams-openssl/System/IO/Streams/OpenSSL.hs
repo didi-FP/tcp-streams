@@ -1,17 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
--- | This module provides convenience functions for interfacing @io-streams@
--- with @HsOpenSSL@. @ssl/SSL@ here stand for @HsOpenSSL@ library, not the
--- deprecated SSL 2.0/3.0 protocol. the receive buffer size is 32752.
--- sending is unbuffered, anything write into 'OutputStream' will be immediately
--- send to underlying socket.
---
--- The same exceptions rule which applied to TCP apply here, with addtional
--- 'SSL.SomeSSLException` to be watched out.
+-- | This module provides convenience functions for interfacing @HsOpenSSL@.
+-- @ssl/SSL@ here stand for @HsOpenSSL@ library, not the deprecated SSL 2.0/3.0 protocol.
 --
 -- This module is intended to be imported @qualified@, e.g.:
 --
 -- @
+-- import           "Data.Connection"
 -- import qualified "System.IO.Streams.OpenSSL" as SSL
 -- @
 --
@@ -19,56 +14,42 @@ module System.IO.Streams.OpenSSL
   ( -- * client
     connect
   , connectWithVerifier
-  , withConnection
+  , sslToConnection
     -- * server
   , accept
-    -- * helpers
-  , sslToStreams
-  , close
-    -- * re-export helpers
+    -- * re-export
   , module Data.OpenSSLSetting
   ) where
 
 import qualified Control.Exception     as E
-import           Control.Monad         (unless, void)
-import           Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as S
+import           Control.Monad         (unless)
+import           Data.Connection
+import qualified Data.ByteString       as S
 import           Data.OpenSSLSetting
-import           Network.Socket        (HostName, PortNumber, Socket)
 import qualified Network.Socket        as N
 import           OpenSSL               (withOpenSSL)
 import           OpenSSL.Session       (SSL, SSLContext)
 import qualified OpenSSL.Session       as SSL
 import qualified OpenSSL.X509          as X509
-import           System.IO.Streams     (InputStream, OutputStream)
 import qualified System.IO.Streams     as Streams
 import qualified System.IO.Streams.TCP as TCP
-
-bUFSIZ :: Int
-bUFSIZ = 32752
 
 -- | Given an existing HsOpenSSL 'SSL' connection, produces an 'InputStream' \/
 -- 'OutputStream' pair.
 --
-sslToStreams :: SSL             -- ^ SSL connection object
-             -> IO (InputStream ByteString, OutputStream ByteString)
-sslToStreams ssl = do
+sslToConnection :: (SSL, N.SockAddr)             -- ^ SSL connection object
+                -> IO Connection
+sslToConnection (ssl, addr) = do
     is <- Streams.makeInputStream input
-    os <- Streams.makeOutputStream output
-    return (is, os)
-
+    return (Connection is (SSL.lazyWrite ssl) (closeSSL ssl) addr)
   where
     input = ( do
-        s <- SSL.read ssl bUFSIZ
+        s <- SSL.read ssl TCP.defaultChunkSize
         return $! if S.null s then Nothing else Just s
         ) `E.catch` (\(_::E.SomeException) -> return Nothing)
 
-    output Nothing  = return ()
-    output (Just s) = SSL.write ssl s
-{-# INLINABLE sslToStreams #-}
-
-close :: SSL.SSL -> IO ()
-close ssl = withOpenSSL $ do
+closeSSL :: SSL.SSL -> IO ()
+closeSSL ssl = withOpenSSL $ do
     SSL.shutdown ssl SSL.Unidirectional
     maybe (return ()) N.close (SSL.sslSocket ssl)
 
@@ -94,9 +75,9 @@ connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
                                 -- this.
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
                                 -- then we will try to verify 'HostName' as subject name.
-        -> HostName             -- ^ hostname to connect to
-        -> PortNumber           -- ^ port number to connect to
-        -> IO (InputStream ByteString, OutputStream ByteString, SSL)
+        -> N.HostName             -- ^ hostname to connect to
+        -> N.PortNumber           -- ^ port number to connect to
+        -> IO Connection
 connect ctx vhost host port = withOpenSSL $ do
     connectWithVerifier ctx verify host port
   where
@@ -123,14 +104,14 @@ connectWithVerifier :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
                                         -- documentation for information on creating
                                         -- this.
                     -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
-                                                -- the result of certificate verification, the
-                                                -- second param is the certificate's subject name.
-                    -> HostName             -- ^ hostname to connect to
-                    -> PortNumber           -- ^ port number to connect to
-                    -> IO (InputStream ByteString, OutputStream ByteString, SSL)
+                                              -- the result of certificate verification, the
+                                              -- second param is the certificate's subject name.
+                    -> N.HostName             -- ^ hostname to connect to
+                    -> N.PortNumber           -- ^ port number to connect to
+                    -> IO Connection
 connectWithVerifier ctx f host port = withOpenSSL $ do
-    sock <- TCP.connectSocket host port
-    E.bracketOnError (SSL.connection ctx sock) close $ \ ssl -> do
+    (sock, addr) <- TCP.connectSocket host port
+    E.bracketOnError (SSL.connection ctx sock) closeSSL $ \ ssl -> do
         SSL.connect ssl
         trusted <- SSL.getVerifyResult ssl
         cert <- SSL.getPeerCertificate ssl
@@ -138,34 +119,7 @@ connectWithVerifier ctx f host port = withOpenSSL $ do
         let cnname = lookup "CN" subnames
             verified = f trusted cnname
         unless verified (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
-        (is, os) <- sslToStreams ssl
-        return (is, os, ssl)
-
-
--- | Convenience function for initiating an SSL connection to the given
--- @('HostName', 'PortNumber')@ combination. The socket and SSL connection are
--- closed and deleted after the user handler runs.
---
-withConnection :: SSLContext
-
-
-               -> Maybe String
-               -> HostName
-               -> PortNumber
-               -> (InputStream ByteString -> OutputStream ByteString -> SSL -> IO a)
-                       -- ^ Action to run with the new connection
-               -> IO a
-withConnection ctx subname host port action =
-    E.bracket (connect ctx subname host port) cleanup go
-
-  where
-    go (is, os, ssl) = action is os ssl
-
-    cleanup (_, os, ssl) = E.mask_ $
-        eatException $! Streams.write Nothing os >> close ssl
-
-    eatException m = void m `E.catch` (\(_::E.SomeException) -> return ())
-
+        sslToConnection (ssl, addr)
 
 -- | Accept a new connection from remote client, return a 'InputStream' / 'OutputStream'
 -- pair and remote 'N.SockAddr', you should call 'TCP.bindAndListen' first.
@@ -173,14 +127,12 @@ withConnection ctx subname host port action =
 -- this operation will throw 'SSL.SomeSSLException' on failure.
 --
 accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting".
-       -> Socket                    -- ^ the listening 'Socket'.
-       -> IO (InputStream ByteString, OutputStream ByteString, SSL.SSL, N.SockAddr)
+       -> N.Socket                  -- ^ the listening 'Socket'.
+       -> IO Connection
 accept ctx sock = withOpenSSL $ do
-    (sock', sockAddr) <- N.accept sock
-    E.bracketOnError (SSL.connection ctx sock') close $ \ ssl -> do
+    (sock', addr) <- N.accept sock
+    E.bracketOnError (SSL.connection ctx sock') closeSSL $ \ ssl -> do
         SSL.accept ssl
         trusted <- SSL.getVerifyResult ssl
         unless trusted (E.throwIO $ SSL.ProtocolError "fail to verify certificate")
-        (is, os) <- sslToStreams ssl
-        return (is, os, ssl, sockAddr)
-
+        sslToConnection (ssl, addr)

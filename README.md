@@ -2,7 +2,7 @@ tcp-streams
 ===========
 
 [![Hackage](https://img.shields.io/hackage/v/tcp-streams.svg?style=flat)](http://hackage.haskell.org/package/tcp-streams)
-[![Build Status](https://travis-ci.org/winterland1989/tcp-streams.svg)](https://travis-ci.org/winterland1989/tcp-streams)
+[![Build Status](https://travis-ci.org/didi-FP/tcp-streams.svg)](https://travis-ci.org/didi-FP/tcp-streams)
 
 One stop solution for tcp client and server with tls support!
 

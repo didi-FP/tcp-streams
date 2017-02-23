@@ -16,6 +16,7 @@ module System.IO.Streams.TLS
   , tLsToConnection
     -- * server
   , accept
+    -- * re-export
   , module Data.TLSSetting
   ) where
 

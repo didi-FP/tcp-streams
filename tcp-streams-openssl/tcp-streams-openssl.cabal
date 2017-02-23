@@ -6,7 +6,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              winterland1989
 maintainer:          winterland1989@gmail.com
-homepage:            https://github.com/winterland1989/tcp-streams
+homepage:            https://github.com/didi-FP/tcp-streams
 copyright:           (c) Winterland 2016 
 category:            Network
 build-type:          Simple
@@ -19,7 +19,7 @@ cabal-version:       >=1.10
 
 source-repository head
   type:     git
-  location: git://github.com/winterland1989/tcp-streams.git
+  location: git://github.com/didi-FP/tcp-streams.git
 
 library
   exposed-modules:    Data.OpenSSLSetting
@@ -30,7 +30,7 @@ library
                     ,   network        >=2.3  && < 3.0
                     ,   bytestring     >= 0.10.2.0
                     ,   io-streams     >= 1.2 && < 2.0
-                    ,   tcp-streams    >= 0.6 && < 0.7
+                    ,   tcp-streams    >= 1.0 && < 1.1
                     ,   HsOpenSSL      >=0.10.3 && <0.12
                     ,   HsOpenSSL-x509-system == 0.1.*
 

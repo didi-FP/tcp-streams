@@ -2,7 +2,7 @@ tcp-streams-openssl
 ===================
 
 [![Hackage](https://img.shields.io/hackage/v/tcp-streams-openssl.svg?style=flat)](http://hackage.haskell.org/package/tcp-streams-openssl)
-[![Build Status](https://travis-ci.org/winterland1989/tcp-streams.svg)](https://travis-ci.org/winterland1989/tcp-streams)
+[![Build Status](https://travis-ci.org/didi-FP/tcp-streams.svg)](https://travis-ci.org/didi-FP/tcp-streams)
 
 This package provides TLS support based on [tcp-streams](http://hackage.haskell.org/package/tcp-streams) using [HsOpenSSL](http://hackage.haskell.org/package/HsOpenSSL). By default `tcp-streams` use `tls` package which is much easier to install but slightly slower.
 
