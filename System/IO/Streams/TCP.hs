@@ -19,6 +19,7 @@ module System.IO.Streams.TCP
   , defaultChunkSize
     -- * server
   , bindAndListen
+  , bindAndListenWith
   , accept
   , acceptWith
   ) where
@@ -109,19 +110,29 @@ connect host port = connectSocket host port >>= socketToConnection defaultChunkS
 
 -- | Bind and listen on port with a limit on connection count.
 --
-bindAndListen :: Int         -- connection limit
-              -> N.PortNumber
+-- This function will set 'N.ReuseAddr', 'N.NoDelay' before binding.
+--
+bindAndListen :: Int                 -- connection limit
+              -> N.PortNumber        -- port number
               -> IO N.Socket
-bindAndListen maxc port = do
+bindAndListen maxc port = bindAndListenWith maxc port $ \ sock ->
+    E.catch
+        (do
+            N.setSocketOption sock N.ReuseAddr 1
+            N.setSocketOption sock N.NoDelay 1)
+        (\ (E.SomeException _) -> return ())
+
+
+-- | Bind and listen on port with a limit on connection count.
+--
+bindAndListenWith :: Int                 -- connection limit
+                  -> N.PortNumber        -- port number
+                  -> (N.Socket -> IO ()) -- set your socket options before binding
+                  -> IO N.Socket
+bindAndListenWith maxc port f = do
     E.bracketOnError (N.socket N.AF_INET N.Stream 0)
                      N.close
-                     (\sock -> do
-                                  -- NoDelay causes an error for AF_UNIX.
-                                  E.catch
-                                    (do
-                                        N.setSocketOption sock N.ReuseAddr 1
-                                        N.setSocketOption sock N.NoDelay 1)
-                                    (\ (E.SomeException _) -> return ())
+                     (\sock -> do f sock
                                   N.bind sock (N.SockAddrInet port N.iNADDR_ANY)
                                   N.listen sock maxc
                                   return sock
