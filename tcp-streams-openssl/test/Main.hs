@@ -65,7 +65,6 @@ testTCPSocket = testCase "network/socket" $
         send conn (L.fromStrict req)
         close conn
 
-
 ------------------------------------------------------------------------------
 
 sslTests :: [Test]

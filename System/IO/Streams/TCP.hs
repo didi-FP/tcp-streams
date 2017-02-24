@@ -25,7 +25,7 @@ module System.IO.Streams.TCP
   ) where
 
 import qualified Control.Exception         as E
-import           Control.Monad             (unless)
+import           Control.Monad
 import           Data.Connection
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy.Internal as L
@@ -45,7 +45,6 @@ defaultChunkSize = 32 * k - chunkOverhead
     k = 1024
     chunkOverhead = 2 * sizeOf (undefined :: Int)
 
-
 -- | Initiating an raw TCP connection to the given @('HostName', 'PortNumber')@ combination.
 --
 -- It use 'N.getAddrInfo' to resolve host/service name
@@ -62,10 +61,7 @@ connectSocket host port = do
     E.bracketOnError (N.socket family socketType protocol)
                      N.close
                      (\sock -> do N.connect sock addr
-                                  -- NoDelay causes an error for AF_UNIX.
-                                  E.catch
-                                    (N.setSocketOption sock N.NoDelay 1)
-                                    (\ (E.SomeException _) -> return ())
+                                  N.setSocketOption sock N.NoDelay 1
                                   return (sock, addr)
                      )
   where
@@ -89,7 +85,7 @@ connectSocket host port = do
 --
 socketToConnection
     :: Int                      -- ^ receive buffer size
-    -> (N.Socket, N.SockAddr)       -- ^ socket address pair
+    -> (N.Socket, N.SockAddr)   -- ^ socket address pair
     -> IO Connection
 socketToConnection bufsiz (sock, addr) = do
     is <- S.makeInputStream $ do
@@ -110,26 +106,38 @@ connect host port = connectSocket host port >>= socketToConnection defaultChunkS
 
 -- | Bind and listen on port with a limit on connection count.
 --
--- This function will set 'N.ReuseAddr', 'N.NoDelay' before binding.
+-- This function will set @SO_REUSEADDR@, @TCP_NODELAY@ before binding.
 --
-bindAndListen :: Int                 -- connection limit
-              -> N.PortNumber        -- port number
+bindAndListen :: Int                 -- ^ connection limit
+              -> N.PortNumber        -- ^ port number
               -> IO N.Socket
-bindAndListen maxc port = bindAndListenWith maxc port $ \ sock ->
-    E.catch
-        (do
-            N.setSocketOption sock N.ReuseAddr 1
-            N.setSocketOption sock N.NoDelay 1)
-        (\ (E.SomeException _) -> return ())
-
+bindAndListen = bindAndListenWith $ \ sock -> do
+    N.setSocketOption sock N.ReuseAddr 1
+    N.setSocketOption sock N.NoDelay 1
 
 -- | Bind and listen on port with a limit on connection count.
 --
-bindAndListenWith :: Int                 -- connection limit
-                  -> N.PortNumber        -- port number
-                  -> (N.Socket -> IO ()) -- set your socket options before binding
+-- Note: The following socket options are inherited by a connected TCP socket from the listening socket:
+--
+-- @
+-- SO_DEBUG
+-- SO_DONTROUTE
+-- SO_KEEPALIVE
+-- SO_LINGER
+-- SO_OOBINLINE
+-- SO_RCVBUF
+-- SO_RCVLOWAT
+-- SO_SNDBUF
+-- SO_SNDLOWAT
+-- TCP_MAXSEG
+-- TCP_NODELAY
+-- @
+--
+bindAndListenWith :: (N.Socket -> IO ()) -- ^ set socket options before binding
+                  -> Int                 -- ^ connection limit
+                  -> N.PortNumber        -- ^ port number
                   -> IO N.Socket
-bindAndListenWith maxc port f = do
+bindAndListenWith f maxc port = do
     E.bracketOnError (N.socket N.AF_INET N.Stream 0)
                      N.close
                      (\sock -> do f sock
@@ -141,11 +149,11 @@ bindAndListenWith maxc port f = do
 -- | Accept a connection with 'defaultChunkSize'
 --
 accept :: N.Socket -> IO Connection
-accept sock = acceptWith sock (socketToConnection defaultChunkSize)
+accept = acceptWith (socketToConnection defaultChunkSize)
 
 -- | Accept a connection with user customization.
 --
-acceptWith :: N.Socket
-           -> ((N.Socket, N.SockAddr) -> IO Connection)
+acceptWith :: ((N.Socket, N.SockAddr) -> IO Connection) -- ^ set socket options, adjust receive buffer
+           -> N.Socket
            -> IO Connection
-acceptWith sock f = f =<< N.accept sock
+acceptWith f = f <=< N.accept

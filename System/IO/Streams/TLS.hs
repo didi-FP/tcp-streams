@@ -57,11 +57,11 @@ closeTLS ctx = (TLS.bye ctx >> TLS.contextClose ctx) -- sometimes socket was clo
 --
 -- This operation may throw 'TLS.TLSException' on failure.
 --
-connectTLS :: ClientParams         -- ^ check "Data.TLSSetting".
+connectTLS :: ClientParams         -- ^ check "Data.TLSSetting"
            -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
-                                   -- then we will try to verify 'HostName' as subject name.
-           -> N.HostName             -- ^ hostname to connect to
-           -> N.PortNumber           -- ^ port number to connect to
+                                   -- then we will try to verify 'HostName' as subject name
+           -> N.HostName           -- ^ hostname to connect to
+           -> N.PortNumber         -- ^ port number to connect to
            -> IO (Context, N.SockAddr)
 connectTLS prms subname host port = do
     let subname' = maybe host id subname
@@ -73,20 +73,20 @@ connectTLS prms subname host port = do
 
 -- | Connect to server using TLS and return a 'Connection'.
 --
-connect :: ClientParams         -- ^ check "Data.TLSSetting".
+connect :: ClientParams         -- ^ check "Data.TLSSetting"
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
-                                -- then we will try to verify 'HostName' as subject name.
+                                -- then we will try to verify 'HostName' as subject name
         -> N.HostName           -- ^ hostname to connect to
         -> N.PortNumber         -- ^ port number to connect to
         -> IO Connection
 connect prms subname host port = connectTLS prms subname host port >>= tLsToConnection
 
--- | Accept a new connection from remote client, you should call 'TCP.bindAndListen' first.
+-- | Accept a new TLS connection from remote client with listening socket.
 --
 -- This operation may throw 'TLS.TLSException' on failure.
 --
-accept :: ServerParams              -- ^ check "Data.TLSSetting".
-       -> N.Socket                    -- ^ the listening 'Socket'.
+accept :: ServerParams              -- ^ check "Data.TLSSetting"
+       -> N.Socket                  -- ^ the listening 'Socket'
        -> IO Connection
 accept prms sock = do
     (sock', addr) <- N.accept sock

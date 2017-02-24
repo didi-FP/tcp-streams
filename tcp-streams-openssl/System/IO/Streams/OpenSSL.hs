@@ -70,13 +70,12 @@ closeSSL ssl = withOpenSSL $ do
 --
 -- If the certificate or hostname is not verified, a 'SSL.ProtocolError' will be thrown.
 --
-connect :: SSLContext           -- ^ SSL context. See the @HsOpenSSL@
-                                -- documentation for information on creating
-                                -- this.
+connect :: SSLContext           -- ^ SSL context, see the @HsOpenSSL@
+                                -- documentation for more information
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
-                                -- then we will try to verify 'HostName' as subject name.
-        -> N.HostName             -- ^ hostname to connect to
-        -> N.PortNumber           -- ^ port number to connect to
+                                -- then we will try to verify 'HostName' as subject name
+        -> N.HostName           -- ^ hostname to connect to
+        -> N.PortNumber         -- ^ port number to connect to
         -> IO Connection
 connect ctx vhost host port = withOpenSSL $ do
     connectWithVerifier ctx verify host port
@@ -105,7 +104,7 @@ connectWithVerifier :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
                                         -- this.
                     -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
                                               -- the result of certificate verification, the
-                                              -- second param is the certificate's subject name.
+                                              -- second param is the certificate's subject name
                     -> N.HostName             -- ^ hostname to connect to
                     -> N.PortNumber           -- ^ port number to connect to
                     -> IO Connection
@@ -126,8 +125,8 @@ connectWithVerifier ctx f host port = withOpenSSL $ do
 --
 -- this operation will throw 'SSL.SomeSSLException' on failure.
 --
-accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting".
-       -> N.Socket                  -- ^ the listening 'Socket'.
+accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting"
+       -> N.Socket                  -- ^ the listening 'Socket'
        -> IO Connection
 accept ctx sock = withOpenSSL $ do
     (sock', addr) <- N.accept sock

@@ -15,6 +15,7 @@ import           System.Directory               (removeFile)
 ------------------------------------------------------------------------------
 import qualified System.IO.Streams              as Stream
 import qualified System.IO.Streams.UnixSocket   as UnixSocket
+import qualified System.IO.Streams.TCP          as TCP
 
 main :: IO ()
 main = N.withSocketsDo $ do
@@ -40,6 +41,6 @@ main = N.withSocketsDo $ do
         E.try (removeFile "./test.sock") :: IO (Either E.IOException ())
         sock <- UnixSocket.bindAndListen 1024 "./test.sock"
         putMVar mvar ()
-        conn <- UnixSocket.accept sock
+        conn <- TCP.accept sock
         req <- Stream.readExactly (1024 * 1024 * 1024) (source conn)
         send conn (L.fromStrict req)

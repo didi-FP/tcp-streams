@@ -6,7 +6,6 @@ module Main (main) where
 ------------------------------------------------------------------------------
 import           Control.Concurrent             (forkIO, newEmptyMVar, putMVar,
                                                  takeMVar)
-import qualified Control.Exception              as E
 import qualified Network.Socket                 as N
 import           System.Timeout                 (timeout)
 import           Test.Framework

@@ -9,11 +9,13 @@ import qualified System.IO.Streams         as S
 --
 -- 'Connection' s from this package are supposed to have following properties:
 --
---  * 'S.InputStream' is used to simplified streaming processing. Reading 'S.InputStream' will block
---  until GHC IO manager find data is ready, for example:
---  @'S.readExactly' 1024@ will block until 1024 bytes are available.
+--  * 'S.InputStream' is choosen to simplify streaming processing.
+--  You can easily push back some data with 'S.unRead',
+--  reading 'S.InputStream' will block until GHC IO manager find data is ready, for example:
+--  @'S.readExactly' 1024@ will block until at least 1024 bytes are available.
 --
---  * <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2 vector-IO>
+--  * The type @'L.ByteString' -> 'IO' ()@ is choosen because it worked well with haskell's builder infrastructure.
+--  <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2 vector-IO>
 --  is used automatically when there's more than one chunk to send to save system call.
 --
 --  * You should make sure there's no pending recv/send before you 'close' a 'Connection'.
@@ -28,8 +30,8 @@ import qualified System.IO.Streams         as S
 --  @since 1.0
 --
 data Connection = Connection
-    { source  :: {-# UNPACK #-} !(S.InputStream B.ByteString)   -- ^ a 'S.InputStream' receive data
-    , send    :: L.ByteString -> IO ()                          -- ^ send data with connection
-    , close   :: IO ()                                          -- ^ close connection
-    , address :: N.SockAddr                                     -- ^ remote address
+    { source     :: {-# UNPACK #-} !(S.InputStream B.ByteString)   -- ^ receive data as 'S.InputStream'
+    , send       :: L.ByteString -> IO ()                          -- ^ send data with connection
+    , close      :: IO ()                                          -- ^ close connection
+    , remoteAddr :: N.SockAddr                                     -- ^ remote address
     }
