@@ -36,7 +36,7 @@ import qualified System.IO.Streams.TCP as TCP
 
 -- | Type alias for tls connection.
 --
--- Normally you shouldn't use 'SSL.SSL' in 'extraInfo' directly.
+-- Normally you shouldn't use 'SSL.SSL' in 'connExtraInfo' directly.
 --
 type TLSConnection = Connection (SSL.SSL , N.SockAddr)
 
@@ -44,7 +44,7 @@ type TLSConnection = Connection (SSL.SSL , N.SockAddr)
 -- 'OutputStream' pair.
 --
 sslToConnection :: (SSL.SSL, N.SockAddr)             -- ^ SSL connection object
-                -> IO Connection
+                -> IO TLSConnection
 sslToConnection (ssl, addr) = do
     is <- Streams.makeInputStream input
     return (Connection is (SSL.lazyWrite ssl) (closeSSL ssl) (ssl, addr))

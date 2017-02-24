@@ -35,7 +35,7 @@ import qualified System.IO.Streams.TCP as TCP
 
 -- | Type alias for tls connection.
 --
--- Normally you shouldn't use 'TLS.Context' in 'extraInfo' directly.
+-- Normally you shouldn't use 'TLS.Context' in 'connExtraInfo' directly.
 --
 type TLSConnection = Connection (TLS.Context, N.SockAddr)
 

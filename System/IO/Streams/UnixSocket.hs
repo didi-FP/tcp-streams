@@ -3,7 +3,7 @@
 -- | This module provides convenience functions for interfacing unix-socket.
 --
 -- This module is only exported on platforms with
--- <https://en.wikipedia.org/wiki/Unix_domain_socket Unix domain socket support>.
+-- <https://en.wikipedia.org/wiki/Unix_domain_socket Unix domain socket> support.
 --
 -- This module is intended to be imported @qualified@, e.g.:
 --
@@ -13,7 +13,7 @@
 -- import qualified "System.IO.Streams.TCP"        as TCP
 -- @
 --
--- @since 0.5.0.0
+-- @since 1.0
 --
 module System.IO.Streams.UnixSocket
   ( -- * client

@@ -36,9 +36,9 @@ import qualified Network.Socket.ByteString.Lazy as NL
 import qualified System.IO.Streams         as S
 import           Foreign.Storable   (sizeOf)
 
--- | Type alias for tcp connection
+-- | Type alias for tcp connection.
 --
--- Normally you shouldn't use 'N.Socket' in 'extraInfo' directly, this field is
+-- Normally you shouldn't use 'N.Socket' in 'connExtraInfo' directly, this field is
 -- intend for used with 'N.setSocketOption' if you need to.
 --
 type TCPConnection = Connection (N.Socket, N.SockAddr)
@@ -154,7 +154,7 @@ bindAndListenWith f maxc port = do
                                   return sock
                      )
 
--- | Accept a connection with 'defaultChunkSize'
+-- | Accept a connection with 'defaultChunkSize'.
 --
 accept :: N.Socket -> IO TCPConnection
 accept = acceptWith (socketToConnection defaultChunkSize)
