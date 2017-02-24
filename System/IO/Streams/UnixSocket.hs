@@ -10,6 +10,7 @@
 -- @
 -- import           "Data.Connection"
 -- import qualified "System.IO.Streams.UnixSocket" as UnixSocket
+-- import qualified "System.IO.Streams.TCP"        as TCP
 -- @
 --
 -- @since 0.5.0.0
@@ -24,7 +25,6 @@ module System.IO.Streams.UnixSocket
 
 import qualified Control.Exception         as E
 import qualified Network.Socket            as N
-import           Data.Connection
 import qualified System.IO.Streams.TCP     as TCP
 
 -- | Convenience function for initiating an raw TCP connection to the given
@@ -49,7 +49,7 @@ connectSocket usock =
 -- | Connect to unix-socket.
 --
 connect :: String             -- ^ unix-socket to connect to
-        -> IO Connection
+        -> IO TCP.TCPConnection
 connect usock = connectSocket usock >>= TCP.socketToConnection TCP.defaultChunkSize
 
 -- | Bind and listen on a unix-socket with a limit on connection count.

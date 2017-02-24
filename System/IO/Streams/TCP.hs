@@ -12,8 +12,9 @@
 -- @
 --
 module System.IO.Streams.TCP
-  ( -- * client
-    connect
+  ( TCPConnection
+    -- * client
+  , connect
   , connectSocket
   , socketToConnection
   , defaultChunkSize
@@ -34,6 +35,13 @@ import qualified Network.Socket.ByteString as NB
 import qualified Network.Socket.ByteString.Lazy as NL
 import qualified System.IO.Streams         as S
 import           Foreign.Storable   (sizeOf)
+
+-- | Type alias for tcp connection
+--
+-- Normally you shouldn't use 'N.Socket' in 'extraInfo' directly, this field is
+-- intend for used with 'N.setSocketOption' if you need to.
+--
+type TCPConnection = Connection (N.Socket, N.SockAddr)
 
 -- | The chunk size used for I\/O, less the memory management overhead.
 --
@@ -86,12 +94,12 @@ connectSocket host port = do
 socketToConnection
     :: Int                      -- ^ receive buffer size
     -> (N.Socket, N.SockAddr)   -- ^ socket address pair
-    -> IO Connection
+    -> IO TCPConnection
 socketToConnection bufsiz (sock, addr) = do
     is <- S.makeInputStream $ do
         s <- NB.recv sock bufsiz
         return $! if B.null s then Nothing else Just s
-    return (Connection is (send sock) (N.close sock) addr)
+    return (Connection is (send sock) (N.close sock) (sock, addr))
   where
     send _    (L.Empty) = return ()
     send sock (L.Chunk bs L.Empty) = unless (B.null bs) (NB.sendAll sock bs)
@@ -101,7 +109,7 @@ socketToConnection bufsiz (sock, addr) = do
 --
 connect :: N.HostName             -- ^ hostname to connect to
         -> N.PortNumber           -- ^ port number to connect to
-        -> IO Connection
+        -> IO TCPConnection
 connect host port = connectSocket host port >>= socketToConnection defaultChunkSize
 
 -- | Bind and listen on port with a limit on connection count.
@@ -148,12 +156,12 @@ bindAndListenWith f maxc port = do
 
 -- | Accept a connection with 'defaultChunkSize'
 --
-accept :: N.Socket -> IO Connection
+accept :: N.Socket -> IO TCPConnection
 accept = acceptWith (socketToConnection defaultChunkSize)
 
 -- | Accept a connection with user customization.
 --
-acceptWith :: ((N.Socket, N.SockAddr) -> IO Connection) -- ^ set socket options, adjust receive buffer
+acceptWith :: ((N.Socket, N.SockAddr) -> IO TCPConnection) -- ^ set socket options, adjust receive buffer, etc.
            -> N.Socket
-           -> IO Connection
+           -> IO TCPConnection
 acceptWith f = f <=< N.accept

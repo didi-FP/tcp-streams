@@ -10,8 +10,9 @@
 -- @
 --
 module System.IO.Streams.TLS
-  ( -- * client
-    connect
+  ( TLSConnection
+    -- * client
+  , connect
   , connectTLS
   , tLsToConnection
     -- * server
@@ -32,13 +33,19 @@ import qualified System.IO.Streams     as Stream
 import qualified System.IO.Streams.TCP as TCP
 
 
+-- | Type alias for tls connection.
+--
+-- Normally you shouldn't use 'TLS.Context' in 'extraInfo' directly.
+--
+type TLSConnection = Connection (TLS.Context, N.SockAddr)
+
 -- | Make a 'Connection' from a 'Context'.
 --
 tLsToConnection :: (Context, N.SockAddr)    -- ^ TLS connection / socket address pair
-                -> IO Connection
+                -> IO TLSConnection
 tLsToConnection (ctx, addr) = do
     is <- Stream.makeInputStream input
-    return (Connection is write (closeTLS ctx) addr)
+    return (Connection is write (closeTLS ctx) (ctx, addr))
   where
     input = (do
         s <- TLS.recvData ctx
@@ -78,7 +85,7 @@ connect :: ClientParams         -- ^ check "Data.TLSSetting"
                                 -- then we will try to verify 'HostName' as subject name
         -> N.HostName           -- ^ hostname to connect to
         -> N.PortNumber         -- ^ port number to connect to
-        -> IO Connection
+        -> IO TLSConnection
 connect prms subname host port = connectTLS prms subname host port >>= tLsToConnection
 
 -- | Accept a new TLS connection from remote client with listening socket.
@@ -87,11 +94,10 @@ connect prms subname host port = connectTLS prms subname host port >>= tLsToConn
 --
 accept :: ServerParams              -- ^ check "Data.TLSSetting"
        -> N.Socket                  -- ^ the listening 'Socket'
-       -> IO Connection
+       -> IO TLSConnection
 accept prms sock = do
     (sock', addr) <- N.accept sock
     E.bracketOnError (TLS.contextNew sock' prms) closeTLS $ \ ctx -> do
         TLS.handshake ctx
         conn <- tLsToConnection (ctx, addr)
         return conn
-

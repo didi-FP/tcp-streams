@@ -11,8 +11,9 @@
 -- @
 --
 module System.IO.Streams.OpenSSL
-  ( -- * client
-    connect
+  ( TLSConnection
+    -- * client
+  , connect
   , connectWithVerifier
   , sslToConnection
     -- * server
@@ -28,20 +29,25 @@ import qualified Data.ByteString       as S
 import           Data.OpenSSLSetting
 import qualified Network.Socket        as N
 import           OpenSSL               (withOpenSSL)
-import           OpenSSL.Session       (SSL, SSLContext)
 import qualified OpenSSL.Session       as SSL
 import qualified OpenSSL.X509          as X509
 import qualified System.IO.Streams     as Streams
 import qualified System.IO.Streams.TCP as TCP
 
+-- | Type alias for tls connection.
+--
+-- Normally you shouldn't use 'SSL.SSL' in 'extraInfo' directly.
+--
+type TLSConnection = Connection (SSL.SSL , N.SockAddr)
+
 -- | Given an existing HsOpenSSL 'SSL' connection, produces an 'InputStream' \/
 -- 'OutputStream' pair.
 --
-sslToConnection :: (SSL, N.SockAddr)             -- ^ SSL connection object
+sslToConnection :: (SSL.SSL, N.SockAddr)             -- ^ SSL connection object
                 -> IO Connection
 sslToConnection (ssl, addr) = do
     is <- Streams.makeInputStream input
-    return (Connection is (SSL.lazyWrite ssl) (closeSSL ssl) addr)
+    return (Connection is (SSL.lazyWrite ssl) (closeSSL ssl) (ssl, addr))
   where
     input = ( do
         s <- SSL.read ssl TCP.defaultChunkSize
@@ -70,13 +76,13 @@ closeSSL ssl = withOpenSSL $ do
 --
 -- If the certificate or hostname is not verified, a 'SSL.ProtocolError' will be thrown.
 --
-connect :: SSLContext           -- ^ SSL context, see the @HsOpenSSL@
+connect :: SSL.SSLContext           -- ^ SSL context, see the @HsOpenSSL@
                                 -- documentation for more information
         -> Maybe String         -- ^ Optional certificate subject name, if set to 'Nothing'
                                 -- then we will try to verify 'HostName' as subject name
         -> N.HostName           -- ^ hostname to connect to
         -> N.PortNumber         -- ^ port number to connect to
-        -> IO Connection
+        -> IO TLSConnection
 connect ctx vhost host port = withOpenSSL $ do
     connectWithVerifier ctx verify host port
   where
@@ -99,7 +105,7 @@ connect ctx vhost host port = withOpenSSL $ do
 --
 -- @since 0.6.0.0@
 --
-connectWithVerifier :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
+connectWithVerifier :: SSL.SSLContext       -- ^ SSL context. See the @HsOpenSSL@
                                         -- documentation for information on creating
                                         -- this.
                     -> (Bool -> Maybe String -> Bool) -- ^ A verify callback, the first param is
@@ -107,7 +113,7 @@ connectWithVerifier :: SSLContext       -- ^ SSL context. See the @HsOpenSSL@
                                               -- second param is the certificate's subject name
                     -> N.HostName             -- ^ hostname to connect to
                     -> N.PortNumber           -- ^ port number to connect to
-                    -> IO Connection
+                    -> IO TLSConnection
 connectWithVerifier ctx f host port = withOpenSSL $ do
     (sock, addr) <- TCP.connectSocket host port
     E.bracketOnError (SSL.connection ctx sock) closeSSL $ \ ssl -> do
@@ -127,7 +133,7 @@ connectWithVerifier ctx f host port = withOpenSSL $ do
 --
 accept :: SSL.SSLContext            -- ^ check "Data.OpenSSLSetting"
        -> N.Socket                  -- ^ the listening 'Socket'
-       -> IO Connection
+       -> IO TLSConnection
 accept ctx sock = withOpenSSL $ do
     (sock', addr) <- N.accept sock
     E.bracketOnError (SSL.connection ctx sock') closeSSL $ \ ssl -> do

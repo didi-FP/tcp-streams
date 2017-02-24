@@ -2,7 +2,6 @@ module Data.Connection where
 
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy.Internal as L
-import qualified Network.Socket            as N
 import qualified System.IO.Streams         as S
 
 -- | A simple connection abstraction.
@@ -18,6 +17,9 @@ import qualified System.IO.Streams         as S
 --  <http://hackage.haskell.org/package/network-2.6.2.1/docs/Network-Socket-ByteString.html#g:2 vector-IO>
 --  is used automatically when there's more than one chunk to send to save system call.
 --
+--  * 'extraInfo' field store extra data about the connection, 'N.SockAddr' for example.
+--  You can also use this field as a type tag to distinguish different type of connection.
+--
 --  * You should make sure there's no pending recv/send before you 'close' a 'Connection'.
 --  That means either you call 'close' in the same thread you recv/send, or use async exception
 --  to terminate recv/send thread before call 'close' in other thread(such as a reaper thread).
@@ -29,9 +31,9 @@ import qualified System.IO.Streams         as S
 --
 --  @since 1.0
 --
-data Connection = Connection
-    { source     :: {-# UNPACK #-} !(S.InputStream B.ByteString)   -- ^ receive data as 'S.InputStream'
-    , send       :: L.ByteString -> IO ()                          -- ^ send data with connection
-    , close      :: IO ()                                          -- ^ close connection
-    , remoteAddr :: N.SockAddr                                     -- ^ remote address
+data Connection a = Connection
+    { source    :: {-# UNPACK #-} !(S.InputStream B.ByteString)   -- ^ receive data as 'S.InputStream'
+    , send      :: L.ByteString -> IO ()                          -- ^ send data with connection
+    , close     :: IO ()                                          -- ^ close connection
+    , extraInfo :: a                                              -- ^ extra info
     }
