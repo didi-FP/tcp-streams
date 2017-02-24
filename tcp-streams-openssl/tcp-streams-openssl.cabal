@@ -1,5 +1,5 @@
 name:                tcp-streams-openssl
-version:             0.6.0.0
+version:             1.0.0.0
 synopsis:            Tcp streams using openssl for tls support.
 description:         Tcp streams using openssl for tls support.
 license:             BSD3
