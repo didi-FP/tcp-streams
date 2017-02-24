@@ -20,6 +20,9 @@ import qualified System.IO.Streams         as S
 --  * 'connExtraInfo' field store extra data about the connection, 'N.SockAddr' for example.
 --  You can also use this field as a type tag to distinguish different type of connection.
 --
+--  * 'close' should close connection resource, thus the 'Connection' shouldn't be used anymore
+--  after 'close' is called.
+--
 --  * You should make sure there's no pending recv/send before you 'close' a 'Connection'.
 --  That means either you call 'close' in the same thread you recv/send, or use async exception
 --  to terminate recv/send thread before call 'close' in other thread(such as a reaper thread).
