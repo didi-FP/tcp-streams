@@ -6,7 +6,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              winterland1989
 maintainer:          winterland1989@gmail.com
-homepage:            https://github.com/winterland1989/tcp-streams
+homepage:            https://github.com/didi-FP/tcp-streams
 copyright:           (c) Winterland 2016 
 category:            Network
 build-type:          Simple
@@ -21,7 +21,7 @@ cabal-version:       >=1.10
 
 source-repository head
   type:     git
-  location: git://github.com/winterland1989/tcp-streams.git
+  location: git://github.com/didi-FP/tcp-streams.git
 
 library
   exposed-modules:      Data.TLSSetting
@@ -61,8 +61,6 @@ test-suite testsuite
                     ,   network
                     ,   bytestring
                     ,   HUnit                      >= 1.2      && <2
-                    ,   QuickCheck                 >= 2.3.0.2  && <3
                     ,   test-framework             >= 0.6      && <0.9
                     ,   test-framework-hunit       >= 0.2.7    && <0.4
-                    ,   test-framework-quickcheck2 >= 0.2.12.1 && <0.4
                     ,   directory      == 1.*

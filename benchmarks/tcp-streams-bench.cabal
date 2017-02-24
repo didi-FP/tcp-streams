@@ -24,7 +24,7 @@ flag openssl
 
 source-repository head
   type:     git
-  location: git://github.com/winterland1989/tcp-streams.git
+  location: git://github.com/didi-FP/tcp-streams.git
 
 library
   hs-source-dirs:   ../

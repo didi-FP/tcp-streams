@@ -2,14 +2,15 @@
 
 ## 1.0.0.0
 
-Major rewrite using new Connection interface.
+Major rewrite using new `Connection` interface.
 
 * Introduce `Connection` in `Data.Connection` to leaverage vectorized IO.
 * Now `connect`, `accept` return `Connection`, remove `withXXX` functions.
 * Change exception behavior to work better with `bracket`.
 * `bindAndListen` 's type changed from `PortNumber -> Int -> IO Socket` to `Int -> PortNumber -> IO Socket`.
+* Add `bindAndListenWith` for custom socket options.
+* Add unix domain socket support.
 * Update built-in mozilla CA list(2017/01/18).
-
 
 ## 0.7.0.0
 

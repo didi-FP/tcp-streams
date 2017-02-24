@@ -14,7 +14,6 @@ import           Test.Framework.Providers.HUnit
 import           Test.HUnit                     hiding (Test)
 import qualified Data.ByteString                as B
 import qualified Data.ByteString.Lazy           as L
-import           System.Directory               (removeFile)
 ------------------------------------------------------------------------------
 import           Data.Connection
 import qualified Data.OpenSSLSetting            as SSL
