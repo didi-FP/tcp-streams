@@ -1,5 +1,10 @@
 # Revision history for tcp-streams
 
+## 1.0.1.0
+
+* Update test cert(the old one just expired).
+* Update built-in mozilla CA list(2017/06/07).
+
 ## 1.0.0.0
 
 Major rewrite using new `Connection` interface.
