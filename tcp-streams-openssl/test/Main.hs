@@ -93,7 +93,7 @@ testSSLSocket = testCase "network/socket" $
         close conn
 
     server mvar = do
-        sp <- SSL.makeServerSSLContext "./test/cert/server.crt" [] "./test/cert/server.key"
+        sp <- SSL.makeServerSSLContext "./test/cert/server-cert.pem" [] "./test/cert/server-key.pem"
         sock <- TCP.bindAndListen 1024 8890
         putMVar mvar ()
         conn <- SSL.accept sp sock

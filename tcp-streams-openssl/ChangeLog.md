@@ -1,5 +1,5 @@
 # Revision history for tcp-streams-openssl
 
-## 0.1.0.0  -- YYYY-mm-dd
+## 0.1.0.1  -- 2017-07-25
 
-* First version. Released on an unsuspecting world.
+* Fix expired test cert .

@@ -72,7 +72,7 @@ bs <- Stream.readExactly 1024 (source conn)
 License
 -------
 
-Copyright (c) 2016, Winterland
+Copyright (c) 2017, Winterland
 
 All rights reserved.
 

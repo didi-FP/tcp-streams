@@ -15,7 +15,7 @@ cabal install --extra-include-dirs=/usr/local/opt/openssl/include --extra-lib-di
 License
 -------
 
-Copyright (c) 2016, Winterland
+Copyright (c) 2017, Winterland
 
 All rights reserved.
 
