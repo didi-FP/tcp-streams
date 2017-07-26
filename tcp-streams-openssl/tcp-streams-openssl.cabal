@@ -13,8 +13,6 @@ build-type:          Simple
 extra-source-files:     ChangeLog.md
                     ,   README.md
                     ,   test/cert/*.pem
-                    ,   test/cert/*.crt
-                    ,   test/cert/*.key
 cabal-version:       >=1.10
 
 source-repository head
