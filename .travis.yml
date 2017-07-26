@@ -31,6 +31,7 @@ install:
  - cabal install --enable-tests --enable-benchmarks
  - cd ./tcp-streams-openssl
  - cabal install --only-dependencies --enable-tests --enable-benchmarks
+ - cd ../
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
 script:
@@ -44,7 +45,7 @@ script:
  - SRC_TGZ=$(cabal info . | awk '{print $2;exit}').tar.gz &&
    (cd dist && cabal install --force-reinstalls "$SRC_TGZ")
 
- - cd ../tcp-streams-openssl
+ - cd ./tcp-streams-openssl
  - cabal configure --enable-tests --enable-benchmarks -v2  # -v2 provides useful information for debugging
  - cabal build   # this builds all libraries and executables (including tests/benchmarks)
  - cabal test
