@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP #-}
 
 -- | This module provides convenience functions for interfacing raw tcp.
 --
@@ -35,6 +36,13 @@ import qualified Network.Socket.ByteString as NB
 import qualified Network.Socket.ByteString.Lazy as NL
 import qualified System.IO.Streams         as S
 import           Foreign.Storable   (sizeOf)
+
+addrAny :: N.HostAddress
+#if MIN_VERSION_network(2,7,0)
+addrAny = N.tupleToHostAddress (0,0,0,0)
+#else
+addrAny = N.iNADDR_ANY
+#endif
 
 -- | Type alias for tcp connection.
 --
@@ -145,11 +153,11 @@ bindAndListenWith :: (N.Socket -> IO ()) -- ^ set socket options before binding
                   -> Int                 -- ^ connection limit
                   -> N.PortNumber        -- ^ port number
                   -> IO N.Socket
-bindAndListenWith f maxc port = do
+bindAndListenWith f maxc port =
     E.bracketOnError (N.socket N.AF_INET N.Stream 0)
                      N.close
                      (\sock -> do f sock
-                                  N.bind sock (N.SockAddrInet port N.iNADDR_ANY)
+                                  N.bind sock (N.SockAddrInet port addrAny)
                                   N.listen sock maxc
                                   return sock
                      )

@@ -30,7 +30,7 @@ install:
  - travis_retry cabal update
  - cabal install --enable-tests --enable-benchmarks
  - cd ./tcp-streams-openssl
- - cabal install --only-dependencies --enable-tests --enable-benchmarks
+ - cabal install --only-dependencies --enable-tests --enable-benchmarks --force-reinstalls
  - cd ../
 
 # Here starts the actual work to be performed for the package under test; any command which exits with a non-zero exit code causes the build to fail.
