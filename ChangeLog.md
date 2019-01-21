@@ -4,6 +4,7 @@
 
 * Fix [stackage#4312](https://github.com/commercialhaskell/stackage/issues/4312): Relax version bound for `network`.
 
+
 ## 1.0.1.0
 
 * Update test cert(the old one just expired).
