@@ -3,7 +3,7 @@
 
 -- | This module provides convenience functions for interfacing raw tcp.
 --
--- Please use 'E.bracket' or its friends to enusre exception safety.
+-- Please use 'E.bracket' or its friends to ensure exception safety.
 --
 -- This module is intended to be imported @qualified@, e.g.:
 --
