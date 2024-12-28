@@ -65,7 +65,7 @@ makeClientParams :: TrustedCAStore          -- ^ trusted certificates.
 makeClientParams tca = do
     caStore <- makeCAStore tca
     return (TLS.defaultParamsClient "" B.empty)
-        {   TLS.clientSupported = def { TLS.supportedCiphers = TLS.ciphersuite_all }
+        {   TLS.clientSupported = def { TLS.supportedCiphers = TLS.ciphersuite_default }
         ,   TLS.clientShared    = def
             {   TLS.sharedCAStore         = caStore
             ,   TLS.sharedValidationCache = def

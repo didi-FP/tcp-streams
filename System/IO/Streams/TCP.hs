@@ -28,7 +28,7 @@ module System.IO.Streams.TCP
 
 import qualified Control.Exception         as E
 import           Control.Monad
-import           Data.Connection
+import           Data.Connection           hiding (send)
 import qualified Data.ByteString           as B
 import qualified Data.ByteString.Lazy.Internal as L
 import qualified Network.Socket            as N
@@ -81,10 +81,10 @@ connectSocket host port = do
                                   return (sock, addr)
                      )
   where
-    resolveAddrInfo host port = do
+    resolveAddrInfo host1 port1 = do
         -- Partial function here OK, network will throw an exception rather than
         -- return the empty list here.
-        (addrInfo:_) <- N.getAddrInfo (Just hints) (Just host) (Just $ show port)
+        (addrInfo:_) <- N.getAddrInfo (Just hints) (Just host1) (Just $ show port1)
         let family     = N.addrFamily addrInfo
         let socketType = N.addrSocketType addrInfo
         let protocol   = N.addrProtocol addrInfo
@@ -110,8 +110,8 @@ socketToConnection bufsiz (sock, addr) = do
     return (Connection is (send sock) (N.close sock) (sock, addr))
   where
     send _    (L.Empty) = return ()
-    send sock (L.Chunk bs L.Empty) = unless (B.null bs) (NB.sendAll sock bs)
-    send sock lbs = NL.sendAll sock lbs
+    send sock1 (L.Chunk bs L.Empty) = unless (B.null bs) (NB.sendAll sock1 bs)
+    send sock1 lbs = NL.sendAll sock1 lbs
 
 -- | Connect to server using 'defaultChunkSize'.
 --
