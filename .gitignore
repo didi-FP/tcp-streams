@@ -24,3 +24,5 @@ duse-eye.keter
 !deploy/config
 !deploy/config/keter.yaml
 !deploy/config.yaml
+
+.direnv/
